@@ -23,11 +23,19 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
 
     GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
+    gtk_widget_set_hexpand(container, TRUE);
+    gtk_widget_set_vexpand(container, TRUE);
+    gtk_widget_set_margin_start(container, 12);
+    gtk_widget_set_margin_end(container, 12);
+    gtk_widget_set_margin_top(container, 12);
+    gtk_widget_set_margin_bottom(container, 12);
     gtk_window_set_child(GTK_WINDOW(window), container);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
+    gtk_widget_set_hexpand(grid, TRUE);
+    gtk_widget_set_vexpand(grid, TRUE);
     gtk_aspect_frame_set_child(GTK_ASPECT_FRAME(container), grid);
 
     for (int i = 0; i < SIZE; i++) {
@@ -39,13 +47,17 @@ void activate(GtkApplication *app, gpointer data) {
             gtk_label_set_yalign(GTK_LABEL(labels[i][j]), 0.5);
 
             GtkWidget *frame = gtk_frame_new(NULL);
-            
+            gtk_widget_set_hexpand(frame, TRUE);
+            gtk_widget_set_vexpand(frame, TRUE);
             gtk_widget_set_margin_top(frame, 5);
             gtk_widget_set_margin_bottom(frame, 5);
             gtk_widget_set_margin_start(frame, 5);
             gtk_widget_set_margin_end(frame, 5);
 
+            // GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
+
             gtk_frame_set_child(GTK_FRAME(frame), labels[i][j]);
+            // gtk_aspect_frame_set_child(GTK_ASPECT_FRAME(container), frame);
             gtk_grid_attach(GTK_GRID(grid), frame, j, i, 1, 1);
         }
     }
