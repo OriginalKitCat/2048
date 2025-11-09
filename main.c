@@ -1,7 +1,10 @@
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define SIZE 4
+
 GtkWidget *labels[SIZE][SIZE];
 
 int board[SIZE][SIZE] = {0};
@@ -12,6 +15,15 @@ void update_cell(int row, int col, int value) {
     char text[16];
     snprintf(text, sizeof(text), "%d", value);
     gtk_label_set_text(GTK_LABEL(labels[row][col]), text);
+        GtkWidget *frame = gtk_widget_get_parent(labels[row][col]);
+    gtk_widget_remove_css_class(frame, "two");
+    gtk_widget_remove_css_class(frame, "four");
+    if (value == 2)
+        gtk_widget_add_css_class(frame, "two");
+    else if (value == 4)
+        gtk_widget_add_css_class(frame, "four");
+    gtk_widget_queue_draw(frame);
+
 }
 
 void spawn_number() {
@@ -23,6 +35,96 @@ void spawn_number() {
         rand_Y_numb = rand() % SIZE;
     }
     update_cell(rand_x_numb, rand_Y_numb, 2);
+}
+
+void move_to_left() {
+    for (int i = 0; i < SIZE; i++) {
+        int temp[SIZE] = {0};
+        int index = 0;
+
+        for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] != 0) {
+                temp[index++] = board[i][j];
+            }
+        }
+
+        for (int j = 0; j < SIZE - 1; j++) {
+            if (temp[j] != 0 && temp[j] == temp[j + 1]) {
+                temp[j] *= 2;
+                temp[j + 1] = 0;
+            }
+        }
+
+        int final_row[SIZE] = {0};
+        index = 0;
+        for (int j = 0; j < SIZE; j++) {
+            if (temp[j] != 0) {
+                final_row[index++] = temp[j];
+            }
+        }
+
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = final_row[j];
+            update_cell(i, j, board[i][j]); 
+        }
+    }
+    spawn_number();
+}
+
+void moveright() {
+    for (int i = 0; i < SIZE; i++) {
+        int temp[SIZE] = {0};
+        int index = SIZE - 1;
+
+        for (int j = SIZE - 1; j >= 0; j--) {
+            if (board[i][j] != 0) {
+                temp[index--] = board[i][j];
+            }
+        }
+
+        for (int j = SIZE - 1; j > 0; j--) {
+            if (temp[j] != 0 && temp[j] == temp[j - 1]) {
+                temp[j] *= 2;
+                temp[j - 1] = 0;
+            }
+        }
+
+        int final_row[SIZE] = {0};
+        index = SIZE - 1;
+        for (int j = SIZE - 1; j >= 0; j--) {
+            if (temp[j] != 0) {
+                final_row[index--] = temp[j];
+            }
+        }
+
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = final_row[j];
+            update_cell(i, j, board[i][j]);
+        }
+    }
+    spawn_number();
+}
+
+
+gboolean on_key_pressed(GtkEventControllerKey *controller,
+                        guint keyval, guint keycode, GdkModifierType state,
+                        gpointer user_data) {
+    if (keyval == GDK_KEY_space) {
+        // for (int i = 0; i < SIZE; i++) {
+        //     for (int j = 0; j < SIZE; j++) {
+        //         update_cell(i, j, 0);
+        //     }
+        // }
+        spawn_number();
+        return TRUE;
+    }
+    if (keyval == GDK_KEY_Left) {
+        move_to_left();
+    }
+    if (keyval == GDK_KEY_Right){
+        moveright();
+    }
+    return FALSE;
 }
 
 void activate(GtkApplication *app, gpointer data) {
@@ -41,13 +143,11 @@ void activate(GtkApplication *app, gpointer data) {
     // gtk_widget_set_margin_bottom(container, 12);
     // gtk_window_set_child(GTK_WINDOW(window), container);
 
-    spawn_number();
-
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
-    gtk_widget_set_hexpand(grid, TRUE);
-    gtk_widget_set_vexpand(grid, TRUE);
+    gtk_widget_set_hexpand(grid, FALSE);
+    gtk_widget_set_vexpand(grid, FALSE);
     gtk_window_set_child(GTK_WINDOW(window), grid);
 
     for (int i = 0; i < SIZE; i++) {
@@ -55,6 +155,7 @@ void activate(GtkApplication *app, gpointer data) {
             char text[16];
             snprintf(text, sizeof(text), "%d", board[i][j]);
             labels[i][j] = gtk_label_new(text);
+            gtk_label_set_max_width_chars(GTK_LABEL(labels[i][j]), TRUE);
             gtk_widget_set_hexpand(labels[i][j], FALSE);
             gtk_widget_set_vexpand(labels[i][j], FALSE);
             gtk_label_set_xalign(GTK_LABEL(labels[i][j]), 0.5);
@@ -75,6 +176,21 @@ void activate(GtkApplication *app, gpointer data) {
             gtk_grid_attach(GTK_GRID(grid), frame, j, i, 1, 1);
         }
     }
+
+    GtkEventController *key_controller = gtk_event_controller_key_new();
+    g_signal_connect(key_controller, "key-pressed", G_CALLBACK(on_key_pressed), NULL);
+    gtk_widget_add_controller(window, key_controller);
+
+    GtkCssProvider *css_provider = gtk_css_provider_new();
+    gtk_css_provider_load_from_string(css_provider,
+    ".two { background-color: #e0a631ff; border-radius: 8px; }"
+    ".four { background-color: #ad7d1cff; border-radius: 8px; }");
+    gtk_style_context_add_provider_for_display(
+        gdk_display_get_default(),
+        GTK_STYLE_PROVIDER(css_provider),
+        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    update_cell(0, 2, 4);
+    spawn_number();
 
     gtk_window_present(GTK_WINDOW(window));
 }
