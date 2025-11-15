@@ -18,10 +18,13 @@ void update_cell(int row, int col, int value) {
         GtkWidget *frame = gtk_widget_get_parent(labels[row][col]);
     gtk_widget_remove_css_class(frame, "two");
     gtk_widget_remove_css_class(frame, "four");
+    gtk_widget_remove_css_class(frame, "eight");
     if (value == 2)
         gtk_widget_add_css_class(frame, "two");
     else if (value == 4)
         gtk_widget_add_css_class(frame, "four");
+    else if (value == 8)
+        gtk_widget_add_css_class(frame, "eight");
     gtk_widget_queue_draw(frame);
 
 }
@@ -38,6 +41,7 @@ void spawn_number() {
 }
 
 void move_to_left() {
+    int move = 0;
     for (int i = 0; i < SIZE; i++) {
         int temp[SIZE] = {0};
         int index = 0;
@@ -45,8 +49,10 @@ void move_to_left() {
         for (int j = 0; j < SIZE; j++) {
             if (board[i][j] != 0) {
                 temp[index++] = board[i][j];
+                
             }
         }
+
 
         for (int j = 0; j < SIZE - 1; j++) {
             if (temp[j] != 0 && temp[j] == temp[j + 1]) {
@@ -63,15 +69,21 @@ void move_to_left() {
             }
         }
 
+
         for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] != final_row[j]) {
+                move = 1;
+            }
             board[i][j] = final_row[j];
             update_cell(i, j, board[i][j]); 
         }
     }
-    spawn_number();
+    if (move)
+        spawn_number();
 }
 
 void moveright() {
+    int move = 0;
     for (int i = 0; i < SIZE; i++) {
         int temp[SIZE] = {0};
         int index = SIZE - 1;
@@ -98,17 +110,20 @@ void moveright() {
         }
 
         for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] != final_row[j]) {
+                move = 1;
+            }
             board[i][j] = final_row[j];
             update_cell(i, j, board[i][j]);
         }
     }
-    spawn_number();
+    if (move) {
+        spawn_number();
+    }
 }
 
 
-gboolean on_key_pressed(GtkEventControllerKey *controller,
-                        guint keyval, guint keycode, GdkModifierType state,
-                        gpointer user_data) {
+gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
     if (keyval == GDK_KEY_space) {
         // for (int i = 0; i < SIZE; i++) {
         //     for (int j = 0; j < SIZE; j++) {
@@ -155,6 +170,7 @@ void activate(GtkApplication *app, gpointer data) {
             char text[16];
             snprintf(text, sizeof(text), "%d", board[i][j]);
             labels[i][j] = gtk_label_new(text);
+            gtk_widget_add_css_class(labels[i][j], "label");
             gtk_label_set_max_width_chars(GTK_LABEL(labels[i][j]), TRUE);
             gtk_widget_set_hexpand(labels[i][j], FALSE);
             gtk_widget_set_vexpand(labels[i][j], FALSE);
@@ -183,8 +199,10 @@ void activate(GtkApplication *app, gpointer data) {
 
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_string(css_provider,
-    ".two { background-color: #e0a631ff; border-radius: 8px; }"
-    ".four { background-color: #ad7d1cff; border-radius: 8px; }");
+    ".two { background-color: #ffee00ff; color: #ff00c8ff; }"
+    ".four { background-color: #ffd000ff; color: #ff002bff; }"
+    ".eight { background-color: #ffbb00ff; color: #00ff0dff; }"
+    ".label { color: black; font-size: 32px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
