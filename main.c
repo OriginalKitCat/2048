@@ -19,12 +19,15 @@ void update_cell(int row, int col, int value) {
     gtk_widget_remove_css_class(frame, "two");
     gtk_widget_remove_css_class(frame, "four");
     gtk_widget_remove_css_class(frame, "eight");
+    gtk_widget_remove_css_class(frame, "sixteen");
     if (value == 2)
         gtk_widget_add_css_class(frame, "two");
     else if (value == 4)
         gtk_widget_add_css_class(frame, "four");
     else if (value == 8)
         gtk_widget_add_css_class(frame, "eight");
+    else if (value == 16)
+        gtk_widget_add_css_class(frame, "sixteen");
     gtk_widget_queue_draw(frame);
 
 }
@@ -122,6 +125,106 @@ void moveright() {
     }
 }
 
+void move_upwards() {
+    int move = 0;
+
+    for (int col = 0; col < SIZE; col++) {
+        int temp[SIZE] = {0};
+        int index = 0;
+
+        for (int row = 0; row < SIZE; row++) {
+            if (board[row][col] != 0) {
+                temp[index++] = board[row][col];
+            }
+        }
+
+        for (int j = 0; j < SIZE - 1; j++) {
+            if (temp[j] != 0 && temp[j] == temp[j + 1]) {
+                temp[j] *= 2;
+                temp[j + 1] = 0;
+            }
+        }
+
+        int final_col[SIZE] = {0};
+        index = 0;
+        for (int j = 0; j < SIZE; j++) {
+            if (temp[j] != 0) {
+                final_col[index++] = temp[j];
+            }
+        }
+
+        for (int row = 0; row < SIZE; row++) {
+            if (board[row][col] != final_col[row]) {
+                move = 1;
+            }
+            board[row][col] = final_col[row];
+            update_cell(row, col, final_col[row]);
+        }
+    }
+
+    if (move)
+        spawn_number();
+}
+
+void move_down() {
+    int move = 0;
+
+    for (int col = 0; col < SIZE; col++) {
+        int temp[SIZE] = {0};
+        int index = 0;
+
+        for (int row = 0; row < SIZE; row++) {
+            if (board[row][col] != 0) {
+                temp[index++] = board[row][col];
+            }
+        }
+
+        for (int j = 0; j < SIZE - 1; j++) {
+            if (temp[j] != 0 && temp[j] == temp[j + 1]) {
+                temp[j] *= 2;
+                temp[j + 1] = 0;
+            }
+        }
+
+        int final_col[SIZE] = {0};
+        index = 0;
+        for (int j = 0; j < SIZE; j++) {
+            if (temp[j] != 0) {
+                final_col[index++] = temp[j];
+            }
+        }
+
+        for (int row = 0; row < SIZE; row++) {
+            if (board[row][col] != final_col[row]) {
+                move = 1;
+            }
+            board[row][col] = final_col[row];
+            update_cell(row, col, final_col[row]);
+        }
+    }
+
+    if (move)
+        spawn_number();
+}
+
+void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
+    GtkWidget *grid = GTK_WIDGET(user_data);
+    int width = allocation->width;
+    int height = allocation->height;
+
+    int h_margin = 0;
+    int v_margin = 0;
+
+    if (width > height)
+        h_margin = (width - height) / 2;
+    else if (height > width)
+        v_margin = (height - width) / 2;
+
+    gtk_widget_set_margin_bottom(grid, v_margin);
+    gtk_widget_set_margin_top(grid, v_margin);
+    gtk_widget_set_margin_start(grid, h_margin);
+    gtk_widget_set_margin_end(grid, h_margin);
+}
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
     if (keyval == GDK_KEY_space) {
@@ -133,37 +236,42 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
         spawn_number();
         return TRUE;
     }
-    if (keyval == GDK_KEY_Left) {
+    if (keyval == GDK_KEY_Left || keyval == GDK_KEY_A || keyval == GDK_KEY_a) {
         move_to_left();
     }
-    if (keyval == GDK_KEY_Right){
+    if (keyval == GDK_KEY_Right || keyval == GDK_KEY_D || keyval == GDK_KEY_d){
         moveright();
     }
+    if (keyval == GDK_KEY_Up || keyval == GDK_KEY_W || keyval == GDK_KEY_w){
+        move_upwards();
+    }
+    // if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
     return FALSE;
 }
 
 void activate(GtkApplication *app, gpointer data) {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
     gtk_widget_set_focusable(GTK_WIDGET(window), TRUE);
     gtk_widget_grab_focus(GTK_WIDGET(window));
 
-    // GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
-    // gtk_widget_set_hexpand(container, TRUE);
-    // gtk_widget_set_vexpand(container, TRUE);
-    // gtk_widget_set_margin_start(container, 12);
-    // gtk_widget_set_margin_end(container, 12);
-    // gtk_widget_set_margin_top(container, 12);
-    // gtk_widget_set_margin_bottom(container, 12);
-    // gtk_window_set_child(GTK_WINDOW(window), container);
+    GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
+    gtk_widget_set_hexpand(container, TRUE);
+    gtk_widget_set_vexpand(container, TRUE);
+    gtk_widget_set_margin_start(container, 12);
+    gtk_widget_set_margin_end(container, 12);
+    gtk_widget_set_margin_top(container, 12);
+    gtk_widget_set_margin_bottom(container, 12);
+    gtk_window_set_child(GTK_WINDOW(window), container);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
     gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
     gtk_widget_set_hexpand(grid, FALSE);
     gtk_widget_set_vexpand(grid, FALSE);
-    gtk_window_set_child(GTK_WINDOW(window), grid);
+    gtk_aspect_frame_set_child(GTK_ASPECT_FRAME(container), grid);
+    g_signal_connect(window, "size-allocate", G_CALLBACK(controlpadding), grid);
 
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -199,16 +307,18 @@ void activate(GtkApplication *app, gpointer data) {
 
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_string(css_provider,
-    ".two { background-color: #ffee00ff; color: #ff00c8ff; }"
-    ".four { background-color: #ffd000ff; color: #ff002bff; }"
-    ".eight { background-color: #ffbb00ff; color: #00ff0dff; }"
-    ".label { color: black; font-size: 32px; font-weight: bold; }");
+    ".two { background-color: #ffee00ff;  }"
+    ".four { background-color: #ffd000ff; }"
+    ".eight { background-color: #ffbb00ff; }"
+    ".sixteen { background-color: #ffae00ff; }"
+    ".label { color: black; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    update_cell(0, 2, 4);
+    update_cell(0, 2, 201);
     spawn_number();
+    // controlpadding(window, grid);
 
     gtk_window_present(GTK_WINDOW(window));
 }
