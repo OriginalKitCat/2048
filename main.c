@@ -7,7 +7,9 @@
 
 GtkWidget *labels[SIZE][SIZE];
 
+
 int board[SIZE][SIZE] = {0};
+int score = 0;
 
 void update_cell(int row, int col, int value) {
     board[row][col] = value;
@@ -29,7 +31,6 @@ void update_cell(int row, int col, int value) {
     else if (value == 16)
         gtk_widget_add_css_class(frame, "sixteen");
     gtk_widget_queue_draw(frame);
-
 }
 
 void spawn_number() {
@@ -60,6 +61,7 @@ void move_to_left() {
         for (int j = 0; j < SIZE - 1; j++) {
             if (temp[j] != 0 && temp[j] == temp[j + 1]) {
                 temp[j] *= 2;
+                score += temp[j];
                 temp[j + 1] = 0;
             }
         }
@@ -100,6 +102,7 @@ void moveright() {
         for (int j = SIZE - 1; j > 0; j--) {
             if (temp[j] != 0 && temp[j] == temp[j - 1]) {
                 temp[j] *= 2;
+                score += temp[j];
                 temp[j - 1] = 0;
             }
         }
@@ -141,6 +144,7 @@ void move_upwards() {
         for (int j = 0; j < SIZE - 1; j++) {
             if (temp[j] != 0 && temp[j] == temp[j + 1]) {
                 temp[j] *= 2;
+                score += temp[j];
                 temp[j + 1] = 0;
             }
         }
@@ -173,7 +177,7 @@ void move_down() {
         int temp[SIZE] = {0};
         int index = 0;
 
-        for (int row = 0; row < SIZE; row++) {
+        for (int row = SIZE - 1; row >= 0; row--) {
             if (board[row][col] != 0) {
                 temp[index++] = board[row][col];
             }
@@ -182,19 +186,21 @@ void move_down() {
         for (int j = 0; j < SIZE - 1; j++) {
             if (temp[j] != 0 && temp[j] == temp[j + 1]) {
                 temp[j] *= 2;
+                score += temp[j];
                 temp[j + 1] = 0;
+                j++;
             }
         }
 
         int final_col[SIZE] = {0};
-        index = 0;
+        index = SIZE - 1;
         for (int j = 0; j < SIZE; j++) {
             if (temp[j] != 0) {
-                final_col[index++] = temp[j];
+                final_col[index--] = temp[j];
             }
         }
 
-        for (int row = 0; row < SIZE; row++) {
+        for (int row = SIZE - 1; row >= 0; row--) {
             if (board[row][col] != final_col[row]) {
                 move = 1;
             }
@@ -205,6 +211,9 @@ void move_down() {
 
     if (move)
         spawn_number();
+    
+    // update_score(score);
+    
 }
 
 void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
@@ -245,25 +254,39 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
     if (keyval == GDK_KEY_Up || keyval == GDK_KEY_W || keyval == GDK_KEY_w){
         move_upwards();
     }
-    // if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
+    if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
+        move_down();
     return FALSE;
 }
 
 void activate(GtkApplication *app, gpointer data) {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
-    gtk_window_set_default_size(GTK_WINDOW(window), 600, 400);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 450);
     gtk_widget_set_focusable(GTK_WIDGET(window), TRUE);
     gtk_widget_grab_focus(GTK_WIDGET(window));
 
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    gtk_window_set_child(GTK_WINDOW(window), vbox);
+
+
+    // GtkWidget *overlay = gtk_overlay_new();
+    // gtk_widget_set_hexpand(overlay, TRUE);
+    // gtk_widget_set_vexpand(overlay, TRUE);
+
+    GtkWidget *scoreboard = gtk_label_new("Score: 0");
+    gtk_widget_add_css_class(scoreboard, "score-label");
+    gtk_widget_set_halign(scoreboard, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(scoreboard, GTK_ALIGN_CENTER);
+    gtk_widget_set_margin_top(scoreboard, 10);
+    gtk_widget_set_margin_end(scoreboard, 10);
+    gtk_widget_set_hexpand(scoreboard, FALSE);
+    gtk_widget_set_vexpand(scoreboard, FALSE);
+    gtk_widget_add_css_class(scoreboard, "infobox");
+    gtk_box_append(GTK_BOX(vbox), scoreboard);
+
     GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
-    gtk_widget_set_hexpand(container, TRUE);
-    gtk_widget_set_vexpand(container, TRUE);
-    gtk_widget_set_margin_start(container, 12);
-    gtk_widget_set_margin_end(container, 12);
-    gtk_widget_set_margin_top(container, 12);
-    gtk_widget_set_margin_bottom(container, 12);
-    gtk_window_set_child(GTK_WINDOW(window), container);
+    gtk_box_append(GTK_BOX(vbox), container);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
@@ -272,6 +295,8 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_vexpand(grid, FALSE);
     gtk_aspect_frame_set_child(GTK_ASPECT_FRAME(container), grid);
     g_signal_connect(window, "size-allocate", G_CALLBACK(controlpadding), grid);
+
+
 
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -284,6 +309,7 @@ void activate(GtkApplication *app, gpointer data) {
             gtk_widget_set_vexpand(labels[i][j], FALSE);
             gtk_label_set_xalign(GTK_LABEL(labels[i][j]), 0.5);
             gtk_label_set_yalign(GTK_LABEL(labels[i][j]), 0.5);
+            gtk_widget_set_size_request(labels[i][j], 80, 80);
 
             GtkWidget *frame = gtk_frame_new(NULL);
             gtk_widget_set_hexpand(frame, FALSE);
@@ -311,17 +337,19 @@ void activate(GtkApplication *app, gpointer data) {
     ".four { background-color: #ffd000ff; }"
     ".eight { background-color: #ffbb00ff; }"
     ".sixteen { background-color: #ffae00ff; }"
+    ".infobox { color: black; font-size 28px; font-weight: normal; border: 1px solid #000000ff; border-radius: 12px; padding: 15px; margin-right: 30px; margin-left: 30px; }"
     ".label { color: black; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    update_cell(0, 2, 201);
+    update_cell(0, 2, 0);
     spawn_number();
     // controlpadding(window, grid);
 
     gtk_window_present(GTK_WINDOW(window));
 }
+
 
 int main(int argc, char **argv) {
     GtkApplication *app;
