@@ -2,10 +2,12 @@
 #include <gdk/gdk.h>
 #include <stdlib.h>
 #include <time.h>
+#include <cairo.h>
 
 #define SIZE 4
 
 GtkWidget *labels[SIZE][SIZE];
+GtkWidget *drawing_area;
 
 
 int board[SIZE][SIZE] = {0};
@@ -22,6 +24,10 @@ void update_cell(int row, int col, int value) {
     gtk_widget_remove_css_class(frame, "four");
     gtk_widget_remove_css_class(frame, "eight");
     gtk_widget_remove_css_class(frame, "sixteen");
+    gtk_widget_remove_css_class(frame, "thirtytwo");
+    gtk_widget_remove_css_class(frame, "sixtyfour");
+    gtk_widget_remove_css_class(frame, "hundredtwentyeitht");
+
     if (value == 2)
         gtk_widget_add_css_class(frame, "two");
     else if (value == 4)
@@ -30,6 +36,13 @@ void update_cell(int row, int col, int value) {
         gtk_widget_add_css_class(frame, "eight");
     else if (value == 16)
         gtk_widget_add_css_class(frame, "sixteen");
+    else if (value == 32)
+        gtk_widget_add_css_class(frame, "thirtytwo");
+    else if (value == 64)
+        gtk_widget_add_css_class(frame, "sixtyfour");
+    else if (value == 128)
+        gtk_widget_add_css_class(frame, "hundredtwentyeitht");
+    
     gtk_widget_queue_draw(frame);
 }
 
@@ -131,6 +144,8 @@ void moveright() {
 void move_upwards() {
     int move = 0;
 
+    is_game_over();
+
     for (int col = 0; col < SIZE; col++) {
         int temp[SIZE] = {0};
         int index = 0;
@@ -216,6 +231,24 @@ void move_down() {
     
 }
 
+static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
+    int width = gtk_widget_get_width(widget);
+    int height = gtk_widget_get_height(widget);
+    cairo_pattern_t *pattern = cairo_pattern_create_linear(0, 0, 0, height);
+    cairo_pattern_add_color_stop_rgb(pattern, 0, 1, 0, 0); 
+    cairo_pattern_add_color_stop_rgb(pattern, 1, 0, 0, 1); 
+    cairo_set_source(cr, pattern);
+    cairo_paint(cr);
+    cairo_pattern_destroy(pattern);
+    return FALSE;
+}
+
+static gboolean on_timeout(gpointer user_data) {
+    GtkWidget *drawingArea = GTK_WIDGET(user_data);
+    gtk_widget_queue_draw(drawingArea); 
+    return G_SOURCE_CONTINUE;
+}
+
 void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
     GtkWidget *grid = GTK_WIDGET(user_data);
     int width = allocation->width;
@@ -233,6 +266,23 @@ void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_
     gtk_widget_set_margin_top(grid, v_margin);
     gtk_widget_set_margin_start(grid, h_margin);
     gtk_widget_set_margin_end(grid, h_margin);
+}
+
+int is_game_over() {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] == 0) {
+                return 0;
+            }
+            if (i < SIZE - 1 && board[i][j] == board[i + 1][j]) {
+                return 0;
+            }
+            if (j < SIZE - 1 && board[i][j] == board[i][j + 1]) {
+                return 0;
+            }
+        }
+    }
+    return 1;  // Game over
 }
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
@@ -284,6 +334,11 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_vexpand(scoreboard, FALSE);
     gtk_widget_add_css_class(scoreboard, "infobox");
     gtk_box_append(GTK_BOX(vbox), scoreboard);
+
+    GtkWidget *drawing_area = gtk_drawing_area_new();
+    gtk_widget_set_size_request(drawing_area, 400, 400);
+    gtk_box_append(GTK_BOX(vbox), drawing_area);
+    g_signal_connect(drawing_area, "draw", G_CALLBACK(on_draw), NULL);
 
     GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
     gtk_box_append(GTK_BOX(vbox), container);
@@ -337,6 +392,9 @@ void activate(GtkApplication *app, gpointer data) {
     ".four { background-color: #ffd000ff; }"
     ".eight { background-color: #ffbb00ff; }"
     ".sixteen { background-color: #ffae00ff; }"
+    ".thirtytwo { background-color: #ffa600ff; }"
+    ".sixtyfour { background-color: #e49400ff }"
+    ".hundredtwentyeitht { background-color: #c98200ff }"
     ".infobox { color: black; font-size 28px; font-weight: normal; border: 1px solid #000000ff; border-radius: 12px; padding: 15px; margin-right: 30px; margin-left: 30px; }"
     ".label { color: black; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
@@ -348,14 +406,12 @@ void activate(GtkApplication *app, gpointer data) {
     // controlpadding(window, grid);
 
     gtk_window_present(GTK_WINDOW(window));
+    g_timeout_add(100, on_timeout, drawing_area);
 }
-
 
 int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
-
-    srand(time(NULL));
 
     app = gtk_application_new("apps.kitcat.game2048", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
