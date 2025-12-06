@@ -2,13 +2,17 @@
 #include <gdk/gdk.h>
 #include <stdlib.h>
 #include <time.h>
-#include <cairo.h>
+#include "include/raylib.h"
+#include <math.h>
 
 #define SIZE 4
 
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
-
+float shader_state = 0.5;
+int shader_state_direaction = 1;
+float shader_speed = 0.01; // Should be not to large...
+int update_time = 50; //in ms 
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
@@ -42,8 +46,6 @@ void update_cell(int row, int col, int value) {
         gtk_widget_add_css_class(frame, "sixtyfour");
     else if (value == 128)
         gtk_widget_add_css_class(frame, "hundredtwentyeitht");
-    
-    gtk_widget_queue_draw(frame);
 }
 
 void spawn_number() {
@@ -144,7 +146,7 @@ void moveright() {
 void move_upwards() {
     int move = 0;
 
-    is_game_over();
+    // is_game_over();
 
     for (int col = 0; col < SIZE; col++) {
         int temp[SIZE] = {0};
@@ -231,23 +233,121 @@ void move_down() {
     
 }
 
-static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
-    int width = gtk_widget_get_width(widget);
-    int height = gtk_widget_get_height(widget);
-    cairo_pattern_t *pattern = cairo_pattern_create_linear(0, 0, 0, height);
-    cairo_pattern_add_color_stop_rgb(pattern, 0, 1, 0, 0); 
-    cairo_pattern_add_color_stop_rgb(pattern, 1, 0, 0, 1); 
-    cairo_set_source(cr, pattern);
+// static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
+// {
+//     cairo_set_source_rgb(cr, 0, 0, 0);
+//     cairo_paint(cr);
+
+//     double mouse_y = 0.9;
+//     if (data) mouse_y = *(double*)data;
+
+//     double a = mouse_y * 3.1415;
+//     double nx = sin(a);
+//     double ny = cos(a);
+
+//     for (int px = 0; px < width; px++) {
+//         for (int py = 0; py < height; py++) {
+
+//             double uvx = ((double)px / width) * 2.0 - 1.0;
+//             double uvy = ((double)py / height) * 2.0 - 1.0;
+
+//             uvx *= 1.1;
+//             uvy *= 1.1;
+
+//             double px2 = fabs(uvx);
+//             double py2 = fabs(uvy);
+
+//             double d = ( (px2 - 0.5) * nx + (py2 - 0.5) * ny );  // dot(p - .5, n)
+
+//             d = fmin(d, px2);
+//             d = fmax(d, -py2);
+//             d = fabs(d);
+
+//             double edge = 0.01;           
+//             double intensity = (d < 0.005) ? 1.0 : 0.0;
+
+//             double r = 0, g = 0, b = 0;
+
+//             if (fmax(px2, py2) > 0.5)
+//                 r += 0.8;
+
+//             r += intensity;
+//             g += intensity;
+//             b += intensity;
+
+//             cairo_set_source_rgb(cr, r, g, b);
+//             cairo_rectangle(cr, px, py, 1, 1);
+//             cairo_fill(cr);
+//         }
+//     }
+// }
+
+static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
+{
+    cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_paint(cr);
-    cairo_pattern_destroy(pattern);
-    return FALSE;
+
+    int canvas_size = 400;
+    canvas_size = width;
+
+    int point1x;
+    int point2x;
+    int point1y;
+    int point2y;
+    
+    if (shader_state <= 0.5) {
+        point1x = shader_state * canvas_size;
+        point2x = canvas_size - shader_state * canvas_size;
+        point1y = 0.5 * canvas_size;
+        point2y = 0.5 * canvas_size;
+    }
+    else if (shader_state > 0.5) {
+        point1x = 0.5 * canvas_size;
+        point2x = 0.5 * canvas_size;
+        point1y = canvas_size - shader_state * canvas_size;
+        point2y = shader_state * canvas_size;
+    }
+
+    cairo_set_source_rgb (cr, 1, 1, 1);
+    cairo_move_to (cr, point1x, point1y);
+    cairo_line_to (cr, point2x, point2y);
+    if (shader_state <= 0.5) {
+        cairo_move_to (cr, 0, 0);
+        cairo_line_to (cr, point1x, point1y);
+        cairo_move_to (cr, 0, canvas_size);
+        cairo_line_to (cr, point1x, point1y);
+        cairo_move_to (cr, canvas_size, 0);
+        cairo_line_to (cr, point2x, point2y);
+        cairo_move_to (cr, canvas_size, canvas_size);
+        cairo_line_to (cr, point2x, point2y);
+    }
+    else{
+        cairo_move_to (cr, 0, 0);
+        cairo_line_to (cr, point1x, point1y);
+        cairo_move_to (cr, 0, canvas_size);
+        cairo_line_to (cr, point2x, point2y);
+        cairo_move_to (cr, canvas_size, 0);
+        cairo_line_to (cr, point1x, point1y);
+        cairo_move_to (cr, canvas_size, canvas_size);
+        cairo_line_to (cr, point2x, point2y);
+    }
+    cairo_set_line_width (cr, 1);
+
+    cairo_stroke(cr);
 }
 
-static gboolean on_timeout(gpointer user_data) {
-    GtkWidget *drawingArea = GTK_WIDGET(user_data);
-    gtk_widget_queue_draw(drawingArea); 
-    return G_SOURCE_CONTINUE;
+gboolean update_shaderstate(gpointer data) {
+    shader_state += shader_speed * shader_state_direaction;
+    if (shader_state <= 0) {
+        shader_state_direaction = -shader_state_direaction;
+    } 
+    else if (shader_state >= 1) {
+        shader_state_direaction = -shader_state_direaction;
+    }
+    gtk_widget_queue_draw(drawing_area);
+    return TRUE;
 }
+
 
 void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_data) {
     GtkWidget *grid = GTK_WIDGET(user_data);
@@ -312,7 +412,7 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
 void activate(GtkApplication *app, gpointer data) {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 450);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 750);
     gtk_widget_set_focusable(GTK_WIDGET(window), TRUE);
     gtk_widget_grab_focus(GTK_WIDGET(window));
 
@@ -335,13 +435,19 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_add_css_class(scoreboard, "infobox");
     gtk_box_append(GTK_BOX(vbox), scoreboard);
 
-    GtkWidget *drawing_area = gtk_drawing_area_new();
-    gtk_widget_set_size_request(drawing_area, 400, 400);
+    drawing_area = gtk_drawing_area_new ();
+    gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (drawing_area), 400);
+    gtk_drawing_area_set_content_height (GTK_DRAWING_AREA (drawing_area), 400);
+    gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA (drawing_area), draw_function, NULL, NULL);
+    gtk_widget_set_hexpand(drawing_area, FALSE);
+    gtk_widget_set_vexpand(drawing_area, FALSE);
     gtk_box_append(GTK_BOX(vbox), drawing_area);
-    g_signal_connect(drawing_area, "draw", G_CALLBACK(on_draw), NULL);
+
+    g_timeout_add(update_time, update_shaderstate, NULL);
 
     GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
     gtk_box_append(GTK_BOX(vbox), container);
+
 
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
@@ -406,7 +512,6 @@ void activate(GtkApplication *app, gpointer data) {
     // controlpadding(window, grid);
 
     gtk_window_present(GTK_WINDOW(window));
-    g_timeout_add(100, on_timeout, drawing_area);
 }
 
 int main(int argc, char **argv) {
@@ -421,4 +526,3 @@ int main(int argc, char **argv) {
 
     return status;
 }
-
