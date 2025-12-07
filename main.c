@@ -9,10 +9,12 @@
 
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
-float shader_state = 0.5;
+float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
 int update_time = 50; //in ms 
+int tiles_count = 4;
+bool tile_rotate = TRUE;
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
@@ -290,47 +292,67 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
     int canvas_size = 400;
     canvas_size = width;
 
-    int point1x;
-    int point2x;
-    int point1y;
-    int point2y;
-    
-    if (shader_state <= 0.5) {
-        point1x = shader_state * canvas_size;
-        point2x = canvas_size - shader_state * canvas_size;
-        point1y = 0.5 * canvas_size;
-        point2y = 0.5 * canvas_size;
-    }
-    else if (shader_state > 0.5) {
-        point1x = 0.5 * canvas_size;
-        point2x = 0.5 * canvas_size;
-        point1y = canvas_size - shader_state * canvas_size;
-        point2y = shader_state * canvas_size;
+    int onetilesize = canvas_size / tiles_count;
+
+    for (int j = 0; j < tiles_count; j++) {
+        for (int i = 0; i < tiles_count; i++) {
+            float localshaderstate = shader_state;
+            if (j % 2 == 1) {
+                if (i % 2 == 1) {
+                    localshaderstate = 1.0 - shader_state;
+                }
+            }
+            else {
+                if (i % 2 != 1) {
+                    localshaderstate = 1.0 - shader_state;
+                }
+            }
+            if (tile_rotate) {
+                localshaderstate = 1.0 - shader_state;
+            }
+
+            int point1x, point2x, point1y, point2y;
+
+            if (localshaderstate <= 0.5) {
+                point1x = localshaderstate * onetilesize;
+                point2x = onetilesize - localshaderstate * onetilesize;
+                point1y = 0.5 * onetilesize;
+                point2y = 0.5 * onetilesize;
+            } else {
+                point1x = 0.5 * onetilesize;
+                point2x = 0.5 * onetilesize;
+                point1y = onetilesize - localshaderstate * onetilesize;
+                point2y = localshaderstate * onetilesize;
+            }
+
+            cairo_set_source_rgb (cr, 1, 1, 1);
+            if (localshaderstate <= 0.5) {
+                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+            }
+            else{
+                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+            }
+        }
     }
 
-    cairo_set_source_rgb (cr, 1, 1, 1);
-    cairo_move_to (cr, point1x, point1y);
-    cairo_line_to (cr, point2x, point2y);
-    if (shader_state <= 0.5) {
-        cairo_move_to (cr, 0, 0);
-        cairo_line_to (cr, point1x, point1y);
-        cairo_move_to (cr, 0, canvas_size);
-        cairo_line_to (cr, point1x, point1y);
-        cairo_move_to (cr, canvas_size, 0);
-        cairo_line_to (cr, point2x, point2y);
-        cairo_move_to (cr, canvas_size, canvas_size);
-        cairo_line_to (cr, point2x, point2y);
-    }
-    else{
-        cairo_move_to (cr, 0, 0);
-        cairo_line_to (cr, point1x, point1y);
-        cairo_move_to (cr, 0, canvas_size);
-        cairo_line_to (cr, point2x, point2y);
-        cairo_move_to (cr, canvas_size, 0);
-        cairo_line_to (cr, point1x, point1y);
-        cairo_move_to (cr, canvas_size, canvas_size);
-        cairo_line_to (cr, point2x, point2y);
-    }
     cairo_set_line_width (cr, 1);
 
     cairo_stroke(cr);
@@ -340,9 +362,13 @@ gboolean update_shaderstate(gpointer data) {
     shader_state += shader_speed * shader_state_direaction;
     if (shader_state <= 0) {
         shader_state_direaction = -shader_state_direaction;
+        // shader_state = 1 - shader_state;
+        // tile_rotate = !tile_rotate;
     } 
     else if (shader_state >= 1) {
         shader_state_direaction = -shader_state_direaction;
+        // shader_state = 1 - shader_state;
+        // tile_rotate = !tile_rotate;
     }
     gtk_widget_queue_draw(drawing_area);
     return TRUE;
