@@ -9,16 +9,19 @@
 
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
+GtkWidget *scoreboard;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
 int update_time = 50; //in ms 
-int tiles_count = 4;
+int tiles_count = 6;
+int tiles_count_h = 6;
+int tiles_count_v = 7;
 bool tile_rotate = TRUE;
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
-
+int highscore = 2048;
 void update_cell(int row, int col, int value) {
     board[row][col] = value;
 
@@ -48,6 +51,8 @@ void update_cell(int row, int col, int value) {
         gtk_widget_add_css_class(frame, "sixtyfour");
     else if (value == 128)
         gtk_widget_add_css_class(frame, "hundredtwentyeitht");
+    else
+        gtk_widget_add_css_class(frame, "normal");
 }
 
 void spawn_number() {
@@ -59,6 +64,17 @@ void spawn_number() {
         rand_Y_numb = rand() % SIZE;
     }
     update_cell(rand_x_numb, rand_Y_numb, 2);
+    return TRUE;
+}
+
+void update_score() {
+    char score_text[16];
+    snprintf(score_text, sizeof(score_text), "%d", score);
+    gtk_label_set_text(GTK_LABEL(scoreboard), score_text);
+
+    if (score > highscore) {
+        highscore = score;
+    }
 }
 
 void move_to_left() {
@@ -102,6 +118,7 @@ void move_to_left() {
     }
     if (move)
         spawn_number();
+    update_score();
 }
 
 void moveright() {
@@ -235,55 +252,6 @@ void move_down() {
     
 }
 
-// static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
-// {
-//     cairo_set_source_rgb(cr, 0, 0, 0);
-//     cairo_paint(cr);
-
-//     double mouse_y = 0.9;
-//     if (data) mouse_y = *(double*)data;
-
-//     double a = mouse_y * 3.1415;
-//     double nx = sin(a);
-//     double ny = cos(a);
-
-//     for (int px = 0; px < width; px++) {
-//         for (int py = 0; py < height; py++) {
-
-//             double uvx = ((double)px / width) * 2.0 - 1.0;
-//             double uvy = ((double)py / height) * 2.0 - 1.0;
-
-//             uvx *= 1.1;
-//             uvy *= 1.1;
-
-//             double px2 = fabs(uvx);
-//             double py2 = fabs(uvy);
-
-//             double d = ( (px2 - 0.5) * nx + (py2 - 0.5) * ny );  // dot(p - .5, n)
-
-//             d = fmin(d, px2);
-//             d = fmax(d, -py2);
-//             d = fabs(d);
-
-//             double edge = 0.01;           
-//             double intensity = (d < 0.005) ? 1.0 : 0.0;
-
-//             double r = 0, g = 0, b = 0;
-
-//             if (fmax(px2, py2) > 0.5)
-//                 r += 0.8;
-
-//             r += intensity;
-//             g += intensity;
-//             b += intensity;
-
-//             cairo_set_source_rgb(cr, r, g, b);
-//             cairo_rectangle(cr, px, py, 1, 1);
-//             cairo_fill(cr);
-//         }
-//     }
-// }
-
 static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
 {
     cairo_set_source_rgb(cr, 0, 0, 0);
@@ -294,8 +262,8 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
 
     int onetilesize = canvas_size / tiles_count;
 
-    for (int j = 0; j < tiles_count; j++) {
-        for (int i = 0; i < tiles_count; i++) {
+    for (int j = 0; j < tiles_count_v; j++) {
+        for (int i = 0; i < tiles_count_h; i++) {
             float localshaderstate = shader_state;
             if (j % 2 == 1) {
                 if (i % 2 == 1) {
@@ -307,10 +275,9 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
                     localshaderstate = 1.0 - shader_state;
                 }
             }
-            if (tile_rotate) {
-                localshaderstate = 1.0 - shader_state;
-            }
-
+            // if (tile_rotate) {
+            //     localshaderstate = 1.0 - shader_state;
+            // }
             int point1x, point2x, point1y, point2y;
 
             if (localshaderstate <= 0.5) {
@@ -325,7 +292,7 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
                 point2y = localshaderstate * onetilesize;
             }
 
-            cairo_set_source_rgb (cr, 1, 1, 1);
+            cairo_set_source_rgba(cr, 1.0, 1.0, 0.0, 0.3);
             if (localshaderstate <= 0.5) {
                 cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
                 cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
@@ -360,15 +327,15 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
 
 gboolean update_shaderstate(gpointer data) {
     shader_state += shader_speed * shader_state_direaction;
-    if (shader_state <= 0) {
+    if (shader_state <= 0.0) {
         shader_state_direaction = -shader_state_direaction;
         // shader_state = 1 - shader_state;
-        // tile_rotate = !tile_rotate;
+        tile_rotate = !tile_rotate;
     } 
-    else if (shader_state >= 1) {
+    else if (shader_state >= 1.0) {
         shader_state_direaction = -shader_state_direaction;
         // shader_state = 1 - shader_state;
-        // tile_rotate = !tile_rotate;
+        tile_rotate = !tile_rotate;
     }
     gtk_widget_queue_draw(drawing_area);
     return TRUE;
@@ -438,28 +405,57 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
 void activate(GtkApplication *app, gpointer data) {
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 750);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 450);
     gtk_widget_set_focusable(GTK_WIDGET(window), TRUE);
     gtk_widget_grab_focus(GTK_WIDGET(window));
 
+    GtkWidget *overeachother = gtk_overlay_new();
+    gtk_window_set_child(GTK_WINDOW(window), overeachother);
+
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    gtk_window_set_child(GTK_WINDOW(window), vbox);
+    gtk_overlay_add_overlay(GTK_OVERLAY(overeachother), vbox);
 
 
     // GtkWidget *overlay = gtk_overlay_new();
     // gtk_widget_set_hexpand(overlay, TRUE);
     // gtk_widget_set_vexpand(overlay, TRUE);
 
-    GtkWidget *scoreboard = gtk_label_new("Score: 0");
+    GtkWidget *info_area = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_set_hexpand(info_area, FALSE);
+    gtk_widget_set_halign(info_area, GTK_ALIGN_CENTER);
+    gtk_box_append(GTK_BOX(vbox), info_area);
+
+    scoreboard = gtk_label_new("Score: 0");
     gtk_widget_add_css_class(scoreboard, "score-label");
-    gtk_widget_set_halign(scoreboard, GTK_ALIGN_CENTER);
-    gtk_widget_set_valign(scoreboard, GTK_ALIGN_CENTER);
+    // gtk_widget_set_halign(scoreboard, GTK_ALIGN_CENTER);
+    // gtk_widget_set_valign(scoreboard, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top(scoreboard, 10);
-    gtk_widget_set_margin_end(scoreboard, 10);
+    gtk_widget_set_margin_bottom(scoreboard, 10);
     gtk_widget_set_hexpand(scoreboard, FALSE);
     gtk_widget_set_vexpand(scoreboard, FALSE);
     gtk_widget_add_css_class(scoreboard, "infobox");
-    gtk_box_append(GTK_BOX(vbox), scoreboard);
+    gtk_box_append(GTK_BOX(info_area), scoreboard);
+
+    GtkWidget *highscore = gtk_label_new("High: 2048");
+    gtk_widget_add_css_class(highscore, "score-label");
+    // gtk_widget_set_halign(highscore, GTK_ALIGN_CENTER);
+    // gtk_widget_set_valign(highscore, GTK_ALIGN_CENTER);
+    gtk_widget_set_margin_top(highscore, 10);
+    gtk_widget_set_margin_bottom(highscore, 10);
+    gtk_widget_set_hexpand(highscore, FALSE);
+    gtk_widget_set_vexpand(highscore, FALSE);
+    gtk_widget_add_css_class(highscore, "infobox");
+    gtk_box_append(GTK_BOX(info_area), highscore);
+
+    // GtkWidget *menu_button_holder_box_overkill_name = gtk_box_new();
+    // gtk_widget_add_css_class(, "infobox");
+
+    GtkWidget *menu_icon = gtk_image_new_from_file("lucide-icons/menu.svg");
+    GtkWidget *menubutton = gtk_color_button_new();
+    gtk_button_set_child(GTK_BUTTON(menubutton), menu_icon);
+    gtk_box_append(GTK_BOX(info_area), menubutton);
+    gtk_widget_add_css_class(menubutton, "infobox");
+    
 
     drawing_area = gtk_drawing_area_new ();
     gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (drawing_area), 400);
@@ -467,13 +463,14 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA (drawing_area), draw_function, NULL, NULL);
     gtk_widget_set_hexpand(drawing_area, FALSE);
     gtk_widget_set_vexpand(drawing_area, FALSE);
-    gtk_box_append(GTK_BOX(vbox), drawing_area);
+    // gtk_box_append(GTK_BOX(vbox), drawing_area);
+    gtk_overlay_set_child(GTK_OVERLAY(overeachother), drawing_area);
 
     g_timeout_add(update_time, update_shaderstate, NULL);
 
     GtkWidget *container = gtk_aspect_frame_new(0.5, 0.5, 1.0, TRUE);
     gtk_box_append(GTK_BOX(vbox), container);
-
+    // gtk_overlay_add_overlay(GTK_OVERLAY(overeachother), container);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
@@ -520,15 +517,16 @@ void activate(GtkApplication *app, gpointer data) {
 
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_string(css_provider,
-    ".two { background-color: #ffee00ff;  }"
-    ".four { background-color: #ffd000ff; }"
-    ".eight { background-color: #ffbb00ff; }"
-    ".sixteen { background-color: #ffae00ff; }"
-    ".thirtytwo { background-color: #ffa600ff; }"
-    ".sixtyfour { background-color: #e49400ff }"
-    ".hundredtwentyeitht { background-color: #c98200ff }"
-    ".infobox { color: black; font-size 28px; font-weight: normal; border: 1px solid #000000ff; border-radius: 12px; padding: 15px; margin-right: 30px; margin-left: 30px; }"
-    ".label { color: black; font-size: 28px; font-weight: bold; }");
+    ".normal { background-color: #d4d4d438; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".two { background-color: #ffee003d; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".four { background-color: #ffd0002c; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".eight { background-color: #ffbb0025; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".sixteen { background-color: #ffae003d; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".thirtytwo { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".sixtyfour { background-color: #e4940031 border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".hundredtwentyeitht { background-color: #c983002c border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
