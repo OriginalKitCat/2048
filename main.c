@@ -4,12 +4,19 @@
 #include <time.h>
 #include "include/raylib.h"
 #include <math.h>
+#include <gio/gio.h>
+// #include <gst/gst.h>
 
 #define SIZE 4
 
+// Just for my self to remember
+// Pop Sound https://pixabay.com/sound-effects/pop-402323/
+
+// GstElement *playbin;
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
 GtkWidget *scoreboard;
+GtkWidget *settings_popup;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
@@ -22,13 +29,14 @@ bool tile_rotate = TRUE;
 int board[SIZE][SIZE] = {0};
 int score = 0;
 int highscore = 2048;
+
 void update_cell(int row, int col, int value) {
     board[row][col] = value;
 
     char text[16];
     snprintf(text, sizeof(text), "%d", value);
     gtk_label_set_text(GTK_LABEL(labels[row][col]), text);
-        GtkWidget *frame = gtk_widget_get_parent(labels[row][col]);
+    GtkWidget *frame = gtk_widget_get_parent(labels[row][col]);
     gtk_widget_remove_css_class(frame, "two");
     gtk_widget_remove_css_class(frame, "four");
     gtk_widget_remove_css_class(frame, "eight");
@@ -36,6 +44,7 @@ void update_cell(int row, int col, int value) {
     gtk_widget_remove_css_class(frame, "thirtytwo");
     gtk_widget_remove_css_class(frame, "sixtyfour");
     gtk_widget_remove_css_class(frame, "hundredtwentyeitht");
+    gtk_widget_remove_css_class(frame, "normal");
 
     if (value == 2)
         gtk_widget_add_css_class(frame, "two");
@@ -64,12 +73,11 @@ void spawn_number() {
         rand_Y_numb = rand() % SIZE;
     }
     update_cell(rand_x_numb, rand_Y_numb, 2);
-    return TRUE;
 }
 
 void update_score() {
-    char score_text[16];
-    snprintf(score_text, sizeof(score_text), "%d", score);
+    char score_text[32];
+    snprintf(score_text, sizeof(score_text), "Score: %d", score);
     gtk_label_set_text(GTK_LABEL(scoreboard), score_text);
 
     if (score > highscore) {
@@ -160,6 +168,7 @@ void moveright() {
     if (move) {
         spawn_number();
     }
+    update_score(score);
 }
 
 void move_upwards() {
@@ -204,6 +213,7 @@ void move_upwards() {
 
     if (move)
         spawn_number();
+    update_score(score);
 }
 
 void move_down() {
@@ -247,9 +257,7 @@ void move_down() {
 
     if (move)
         spawn_number();
-    
-    // update_score(score);
-    
+    update_score(score);
 }
 
 static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
@@ -402,7 +410,10 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
     return FALSE;
 }
 
+
 void activate(GtkApplication *app, gpointer data) {
+    gst_init(NULL, NULL);
+
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 450);
@@ -430,7 +441,7 @@ void activate(GtkApplication *app, gpointer data) {
     // gtk_widget_set_halign(scoreboard, GTK_ALIGN_CENTER);
     // gtk_widget_set_valign(scoreboard, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top(scoreboard, 10);
-    gtk_widget_set_margin_bottom(scoreboard, 10);
+    gtk_widget_set_margin_bottom(scoreboard, 5);
     gtk_widget_set_hexpand(scoreboard, FALSE);
     gtk_widget_set_vexpand(scoreboard, FALSE);
     gtk_widget_add_css_class(scoreboard, "infobox");
@@ -441,7 +452,7 @@ void activate(GtkApplication *app, gpointer data) {
     // gtk_widget_set_halign(highscore, GTK_ALIGN_CENTER);
     // gtk_widget_set_valign(highscore, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top(highscore, 10);
-    gtk_widget_set_margin_bottom(highscore, 10);
+    gtk_widget_set_margin_bottom(highscore, 5);
     gtk_widget_set_hexpand(highscore, FALSE);
     gtk_widget_set_vexpand(highscore, FALSE);
     gtk_widget_add_css_class(highscore, "infobox");
@@ -451,11 +462,33 @@ void activate(GtkApplication *app, gpointer data) {
     // gtk_widget_add_css_class(, "infobox");
 
     GtkWidget *menu_icon = gtk_image_new_from_file("lucide-icons/menu.svg");
-    GtkWidget *menubutton = gtk_color_button_new();
+    GtkWidget *menubutton = gtk_button_new();
+    gtk_widget_set_margin_top(menubutton, 10);
+    gtk_widget_set_margin_bottom(menubutton, 5);
+    gtk_widget_set_hexpand(menubutton, FALSE);
+    gtk_widget_set_vexpand(menubutton, FALSE);
     gtk_button_set_child(GTK_BUTTON(menubutton), menu_icon);
     gtk_box_append(GTK_BOX(info_area), menubutton);
-    gtk_widget_add_css_class(menubutton, "infobox");
+    gtk_widget_add_css_class(menubutton, "infobutton");
+
+    // playbin = gst_element_factory_make("gtkpopplayer", "plop-player");
+    // g_object_set(playbin, "uri", "/home/adam/Projekte/gtk_apps/2048/sounds/pop.mp3", NULL);
+    // if (!playbin) {
+    //     g_printerr("Failed to create playbin element\n");
+    //     return;
+    // }
+    // gst_element_set_state(playbin, GST_STATE_PLAYING);
     
+    const char *pop_sound_uri = "file:///path/to/your/soundfile.ogg";
+
+    //Hopefully I'll work on that later on
+    settings_popup = gtk_popover_new();
+    gtk_popover_set_pointing_to(GTK_POPOVER(settings_popup), menubutton);
+    gtk_popover_set_has_arrow(GTK_POPOVER(settings_popup), TRUE);
+    gtk_popover_set_autohide(GTK_POPOVER(settings_popup), TRUE);
+
+    GtkWidget *testlableIllreplaceThis = gtk_label_new("Hi from the pop up!");
+    gtk_popover_set_child(GTK_POPOVER(settings_popup), testlableIllreplaceThis);
 
     drawing_area = gtk_drawing_area_new ();
     gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (drawing_area), 400);
@@ -517,22 +550,30 @@ void activate(GtkApplication *app, gpointer data) {
 
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_string(css_provider,
-    ".normal { background-color: #d4d4d438; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".two { background-color: #ffee003d; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".four { background-color: #ffd0002c; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".eight { background-color: #ffbb0025; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".sixteen { background-color: #ffae003d; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".thirtytwo { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".sixtyfour { background-color: #e4940031 border: 1px solid rgba(255, 255, 0, 0.21) }"
-    ".hundredtwentyeitht { background-color: #c983002c border: 1px solid rgba(255, 255, 0, 0.21) }"
+    ".normal { background-color: #d4d4d438; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".two { background-color: #ffee003d; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".four { background-color: #ffd0002c; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".eight { background-color: #ffbb0025; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".sixteen { background-color: #ffae003d; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".thirtytwo { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".sixtyfour { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".hundredtwentyeitht { background-color: #c983002c; border: 1px solid; rgba(255, 255, 0, 0.21); }"
     ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
+    ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    update_cell(0, 2, 0);
+    // update_cell(0, 2, 0);
     spawn_number();
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            int value = board[i][j];
+            update_cell(i, j, board[i][j]);
+        }
+    }
     // controlpadding(window, grid);
 
     gtk_window_present(GTK_WINDOW(window));
@@ -541,6 +582,10 @@ void activate(GtkApplication *app, gpointer data) {
 int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
+
+    gst_init(NULL, NULL);
+
+    srand((unsigned int)time(NULL));
 
     app = gtk_application_new("apps.kitcat.game2048", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
