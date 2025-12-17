@@ -5,7 +5,7 @@
 #include "include/raylib.h"
 #include <math.h>
 #include <gio/gio.h>
-// #include <gst/gst.h>
+#include <gst/gst.h>
 
 #define SIZE 4
 
@@ -13,6 +13,8 @@
 // Pop Sound https://pixabay.com/sound-effects/pop-402323/
 
 // GstElement *playbin;
+GError *error = NULL;
+
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
 GtkWidget *scoreboard;
@@ -29,6 +31,8 @@ bool tile_rotate = TRUE;
 int board[SIZE][SIZE] = {0};
 int score = 0;
 int highscore = 2048;
+
+gchar *pop_sound_uri = "file:///home/adam/Projekte/gtk_apps/2048/sounds/pop.mp3";
 
 void update_cell(int row, int col, int value) {
     board[row][col] = value;
@@ -73,6 +77,29 @@ void spawn_number() {
         rand_Y_numb = rand() % SIZE;
     }
     update_cell(rand_x_numb, rand_Y_numb, 2);
+}
+
+void play_pop_sound() {
+    GstElement *pipeline;
+    pipeline = gst_parse_launch("playbin uri=NULL", NULL);
+    g_object_set(pipeline, "uri", pop_sound_uri, NULL);
+    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    GstBus *bus = gst_element_get_bus(pipeline);
+    GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
+    if (msg != NULL) {
+        if (GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR) {
+            GError *err;
+            gchar *debug;
+            gst_message_parse_error(msg, &err, &debug);
+            g_print("Error: %s\n", err->message);
+            g_error_free(err);
+            g_free(debug);
+        }
+        gst_message_unref(msg);
+    }
+    gst_object_unref(bus);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
 }
 
 void update_score() {
@@ -387,6 +414,7 @@ int is_game_over() {
 }
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
+    play_pop_sound();
     if (keyval == GDK_KEY_space) {
         // for (int i = 0; i < SIZE; i++) {
         //     for (int j = 0; j < SIZE; j++) {
@@ -470,16 +498,6 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_button_set_child(GTK_BUTTON(menubutton), menu_icon);
     gtk_box_append(GTK_BOX(info_area), menubutton);
     gtk_widget_add_css_class(menubutton, "infobutton");
-
-    // playbin = gst_element_factory_make("gtkpopplayer", "plop-player");
-    // g_object_set(playbin, "uri", "/home/adam/Projekte/gtk_apps/2048/sounds/pop.mp3", NULL);
-    // if (!playbin) {
-    //     g_printerr("Failed to create playbin element\n");
-    //     return;
-    // }
-    // gst_element_set_state(playbin, GST_STATE_PLAYING);
-    
-    const char *pop_sound_uri = "file:///path/to/your/soundfile.ogg";
 
     //Hopefully I'll work on that later on
     settings_popup = gtk_popover_new();
@@ -575,7 +593,6 @@ void activate(GtkApplication *app, gpointer data) {
         }
     }
     // controlpadding(window, grid);
-
     gtk_window_present(GTK_WINDOW(window));
 }
 
@@ -583,7 +600,7 @@ int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
 
-    gst_init(NULL, NULL);
+    gst_init(&argc, &argv);
 
     srand((unsigned int)time(NULL));
 
