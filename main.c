@@ -1,3 +1,5 @@
+// You and me know Phython + Gtk is 10x easier, but I don't care. The next challenge will be brainfuck.
+
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <stdlib.h>
@@ -27,6 +29,7 @@ int tiles_count = 6;
 int tiles_count_h = 6;
 int tiles_count_v = 7;
 bool tile_rotate = TRUE;
+float opacity = 0.21; //Don't ask
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
@@ -79,27 +82,39 @@ void spawn_number() {
     update_cell(rand_x_numb, rand_Y_numb, 2);
 }
 
+// void play_pop_sound() {
+//     GstElement *pipeline;
+//     pipeline = gst_parse_launch("playbin uri=NULL", NULL);
+//     g_object_set(pipeline, "uri", pop_sound_uri, NULL);
+//     gst_element_set_state(pipeline, GST_STATE_PLAYING);
+//     GstBus *bus = gst_element_get_bus(pipeline);
+//     GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
+//     if (msg != NULL) {
+//         if (GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR) {
+//             GError *err;
+//             gchar *debug;
+//             gst_message_parse_error(msg, &err, &debug);
+//             g_print("Error: %s\n", err->message);
+//             g_error_free(err);
+//             g_free(debug);
+//         }
+//         gst_message_unref(msg);
+//     }
+//     gst_object_unref(bus);
+//     gst_element_set_state(pipeline, GST_STATE_NULL);
+//     gst_object_unref(pipeline);
+// }
+
 void play_pop_sound() {
-    GstElement *pipeline;
-    pipeline = gst_parse_launch("playbin uri=NULL", NULL);
+    GstElement *pipeline = gst_parse_launch("playbin uri=NULL", NULL);
     g_object_set(pipeline, "uri", pop_sound_uri, NULL);
     gst_element_set_state(pipeline, GST_STATE_PLAYING);
-    GstBus *bus = gst_element_get_bus(pipeline);
-    GstMessage *msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_EOS | GST_MESSAGE_ERROR);
-    if (msg != NULL) {
-        if (GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR) {
-            GError *err;
-            gchar *debug;
-            gst_message_parse_error(msg, &err, &debug);
-            g_print("Error: %s\n", err->message);
-            g_error_free(err);
-            g_free(debug);
-        }
-        gst_message_unref(msg);
-    }
-    gst_object_unref(bus);
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+}
+
+void play_background_music() {
+    GstElement *backgroundpipe = gst_parse_launch("playbin uri=NULL", NULL);
+    g_object_set(backgroundpipe, "uri", pop_sound_uri, NULL);
+    gst_element_set_state(backgroundpipe, GST_STATE_PLAYING);
 }
 
 void update_score() {
@@ -114,6 +129,8 @@ void update_score() {
 
 void move_to_left() {
     int move = 0;
+    int times_changed = 0;
+
     for (int i = 0; i < SIZE; i++) {
         int temp[SIZE] = {0};
         int index = 0;
@@ -131,6 +148,7 @@ void move_to_left() {
                 temp[j] *= 2;
                 score += temp[j];
                 temp[j + 1] = 0;
+                times_changed++;
             }
         }
 
@@ -154,10 +172,15 @@ void move_to_left() {
     if (move)
         spawn_number();
     update_score();
+    for (times_changed; times_changed > 0; times_changed--) {
+        play_pop_sound();
+        sleep(0.2);
+    }
 }
 
 void moveright() {
     int move = 0;
+    int times_changed = 0;
     for (int i = 0; i < SIZE; i++) {
         int temp[SIZE] = {0};
         int index = SIZE - 1;
@@ -173,6 +196,7 @@ void moveright() {
                 temp[j] *= 2;
                 score += temp[j];
                 temp[j - 1] = 0;
+                times_changed++;
             }
         }
 
@@ -196,11 +220,16 @@ void moveright() {
         spawn_number();
     }
     update_score(score);
+    for (times_changed; times_changed > 0; times_changed--) {
+        play_pop_sound();
+        sleep(0.2);
+    }
 }
 
 void move_upwards() {
     int move = 0;
 
+    int times_changed = 0;
     // is_game_over();
 
     for (int col = 0; col < SIZE; col++) {
@@ -218,6 +247,7 @@ void move_upwards() {
                 temp[j] *= 2;
                 score += temp[j];
                 temp[j + 1] = 0;
+                times_changed++;
             }
         }
 
@@ -241,10 +271,15 @@ void move_upwards() {
     if (move)
         spawn_number();
     update_score(score);
+    for (times_changed; times_changed > 0; times_changed--) {
+        play_pop_sound();
+        sleep(0.2);
+    }
 }
 
 void move_down() {
     int move = 0;
+    int times_changed = 0;
 
     for (int col = 0; col < SIZE; col++) {
         int temp[SIZE] = {0};
@@ -261,7 +296,7 @@ void move_down() {
                 temp[j] *= 2;
                 score += temp[j];
                 temp[j + 1] = 0;
-                j++;
+                times_changed++;
             }
         }
 
@@ -285,6 +320,10 @@ void move_down() {
     if (move)
         spawn_number();
     update_score(score);
+    for (times_changed; times_changed > 0; times_changed--) {
+        play_pop_sound();
+        sleep(0.2);
+    }
 }
 
 static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
@@ -414,7 +453,6 @@ int is_game_over() {
 }
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
-    play_pop_sound();
     if (keyval == GDK_KEY_space) {
         // for (int i = 0; i < SIZE; i++) {
         //     for (int j = 0; j < SIZE; j++) {
@@ -436,6 +474,11 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
     if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
         move_down();
     return FALSE;
+}
+
+void menu_button_pressed(GtkButton *button, gpointer user_data) {
+    GtkPopover *popover = GTK_POPOVER(user_data);
+    gtk_popover_popup(popover);
 }
 
 
@@ -499,14 +542,28 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_box_append(GTK_BOX(info_area), menubutton);
     gtk_widget_add_css_class(menubutton, "infobutton");
 
-    //Hopefully I'll work on that later on
+    //Hopefully I'll work on that later on - and it will work too...
     settings_popup = gtk_popover_new();
-    gtk_popover_set_pointing_to(GTK_POPOVER(settings_popup), menubutton);
-    gtk_popover_set_has_arrow(GTK_POPOVER(settings_popup), TRUE);
+    // gtk_popover_set_relative_to(GTK_POPOVER(settings_popup), menubutton); // This was the gtk3 way ig
+    gtk_widget_set_parent(settings_popup, menubutton);
     gtk_popover_set_autohide(GTK_POPOVER(settings_popup), TRUE);
+    gtk_popover_set_has_arrow(GTK_POPOVER(settings_popup), TRUE);
+    // gtk_popover_set_pointing_to(GTK_POPOVER(settings_popup), menubutton);
 
-    GtkWidget *testlableIllreplaceThis = gtk_label_new("Hi from the pop up!");
-    gtk_popover_set_child(GTK_POPOVER(settings_popup), testlableIllreplaceThis);
+    GtkWidget *menu_vStack = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_top(menu_vStack, 15);
+    gtk_widget_set_margin_bottom(menu_vStack, 15);
+    gtk_widget_set_margin_start(menu_vStack, 15);
+    gtk_widget_set_margin_end(menu_vStack, 15);
+    GtkWidget *placeholder_label = gtk_label_new("This is just a placeholder");
+    gtk_widget_add_css_class(placeholder_label, "infobox");
+    gtk_box_append(GTK_BOX(settings_popup), placeholder_label);
+    GtkWidget *anotherplaceholderlable = gtk_label_new("Just an other one.");
+    gtk_widget_add_css_class(anotherplaceholderlable, "infobox");
+    gtk_box_append(GTK_BOX(settings_popup), anotherplaceholderlable);
+
+    g_signal_connect(menubutton, "clicked", G_CALLBACK(menu_button_pressed), settings_popup);
+
 
     drawing_area = gtk_drawing_area_new ();
     gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (drawing_area), 400);
@@ -575,7 +632,7 @@ void activate(GtkApplication *app, gpointer data) {
     ".sixteen { background-color: #ffae003d; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".thirtytwo { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".sixtyfour { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
-    ".hundredtwentyeitht { background-color: #c983002c; border: 1px solid; rgba(255, 255, 0, 0.21); }"
+    ".hundredtwentyeitht { background-color: #c983002c; border: 1px solid rgba(217, 255, 0, 0.21); }"
     ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
