@@ -22,6 +22,7 @@ GtkWidget *winscreen_vbox;
 GtkWidget *labels[SIZE][SIZE];
 GtkWidget *drawing_area;
 GtkWidget *scoreboard;
+GtkWidget *highscoreboard;
 GtkWidget *settings_popup;
 GtkWidget *score_info;
 GtkWidget *scorelabel;
@@ -42,7 +43,7 @@ int gamestatus = 0; // 0 playing, 1 lost, 2 won
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
-int highscore = 2048;
+int highscore = 2008;
 int moves = 0;
 
 clock_t start, end;
@@ -64,6 +65,9 @@ void update_cell(int row, int col, int value) {
     gtk_widget_remove_css_class(frame, "thirtytwo");
     gtk_widget_remove_css_class(frame, "sixtyfour");
     gtk_widget_remove_css_class(frame, "hundredtwentyeitht");
+    gtk_widget_remove_css_class(frame, "twohundredfiftysix");
+    gtk_widget_remove_css_class(frame, "fivehundredtwelve");
+    gtk_widget_remove_css_class(frame, "thousendtwentyfour");
     gtk_widget_remove_css_class(frame, "normal");
 
     if (value == 2)
@@ -80,6 +84,12 @@ void update_cell(int row, int col, int value) {
         gtk_widget_add_css_class(frame, "sixtyfour");
     else if (value == 128)
         gtk_widget_add_css_class(frame, "hundredtwentyeitht");
+    else if (value == 256)
+        gtk_widget_add_css_class(frame, "twohundredfiftysix");
+    else if (value == 512)
+        gtk_widget_add_css_class(frame, "fivehundredtwelve");
+    else if (value == 1024)
+        gtk_widget_add_css_class(frame, "thousendtwentyfour");
     else
         gtk_widget_add_css_class(frame, "normal");
 }
@@ -134,6 +144,9 @@ void update_score() {
     char score_text[32];
     snprintf(score_text, sizeof(score_text), "Score: %d", score);
     gtk_label_set_text(GTK_LABEL(scoreboard), score_text);
+    char high_label[32];
+    snprintf(high_label, sizeof(high_label), "High: %d", highscore);
+    gtk_label_set_text(GTK_LABEL(highscoreboard), high_label);
 
     if (score > highscore) {
         highscore = score;
@@ -147,9 +160,13 @@ play_again() {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             board[i][j] = 0;
+            update_cell(i, j, board[i][j]);
         }
     }
-    gamestatus == 0;
+    char highscorestring[32];
+    snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
+    gtk_label_set_text(GTK_LABEL(highscorelabel), highscorestring);
+    gamestatus = 0;
     spawn_number();
     return FALSE;
 }
@@ -165,6 +182,17 @@ void check_if_won() {
     if (gamestatus == 2) {
         gtk_widget_set_visible(playarea_vbox, FALSE);
         gtk_widget_set_visible(winscreen_vbox, TRUE);
+
+        char scorestring[32];
+        snprintf(scorestring, sizeof(scorestring), "Score: %d", score);
+        gtk_label_set_text(GTK_LABEL(scorelabel), scorestring);
+
+        char highscorestring[32];
+        snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
+        gtk_label_set_text(GTK_LABEL(highscorelabel), highscorestring);
+
+        char movescountstring[32];
+        snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
     }
     end = clock();
     cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -559,7 +587,7 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_add_css_class(scoreboard, "infobox");
     gtk_box_append(GTK_BOX(info_area), scoreboard);
 
-    GtkWidget *highscoreboard = gtk_label_new("Failed to get high");
+    highscoreboard = gtk_label_new("Failed to get high");
     gtk_widget_add_css_class(highscoreboard, "score-label");
     // gtk_widget_set_halign(highscore, GTK_ALIGN_CENTER);
     // gtk_widget_set_valign(highscore, GTK_ALIGN_CENTER);
@@ -617,6 +645,11 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_overlay_add_overlay(GTK_OVERLAY(overeachother), winscreen_vbox);
     gtk_widget_set_visible(winscreen_vbox, FALSE);
 
+    GtkWidget *twozeroheading = gtk_label_new("2048");
+    gtk_widget_set_margin_bottom(twozeroheading, 5);
+    gtk_widget_add_css_class(twozeroheading, "twozeroheadingcss");
+    gtk_box_append(GTK_BOX(winscreen_vbox), twozeroheading);
+
     GtkWidget *won_heading = gtk_label_new("You won!");
     gtk_widget_set_margin_bottom(won_heading, 5);
     gtk_widget_add_css_class(won_heading, "infoboxheading");
@@ -669,6 +702,11 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_add_css_class(playAgain, "infobutton");
     GtkWidget *buttonlable = gtk_label_new("Play Again!");
     gtk_button_set_child(GTK_BUTTON(playAgain), buttonlable);
+
+    GtkWidget *copyrightnote = gtk_label_new("© 2025 KitCat / GNU GPLv3");
+    gtk_box_append(GTK_BOX(winscreen_vbox), copyrightnote);
+    gtk_widget_add_css_class(copyrightnote, "copyright");
+    gtk_widget_set_margin_bottom(copyrightnote, 5);
 
     g_signal_connect(playAgain, "clicked", G_CALLBACK(play_again), NULL);
 
@@ -741,14 +779,18 @@ void activate(GtkApplication *app, gpointer data) {
     ".thirtytwo { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".sixtyfour { background-color: #ffa60038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".hundredtwentyeitht { background-color: #ff880038; border: 1px solid rgba(255, 255, 0, 0.21); }"
-    ".twohundredfiftysix { background-color: #ff730038; border: 1px solid rgba(255, 255, 0, 21); }"
+    ".twohundredfiftysix { background-color: #ff730038; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".fivehundredtwelve { background-color: #ff5e0038; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".thousendtwentyfour { background-color: #ff480038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".twozeroheadingcss { color: #949494; font-size: 26px; font-weight: bold; }"
+    ".copyright { color: #949494; font-size: 12px; font-weight: normal; } "
     ".popover > contents > background { background-color: #000000ff; border-radius: 12px; }"
-    ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; }");
+    ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; font-weight: bold;}");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
         GTK_STYLE_PROVIDER(css_provider),
