@@ -24,6 +24,10 @@ GtkWidget *drawing_area;
 GtkWidget *scoreboard;
 GtkWidget *settings_popup;
 GtkWidget *score_info;
+GtkWidget *scorelabel;
+GtkWidget *highscorelabel;
+GtkWidget *movescountdisplay;
+GtkWidget *timerlabel;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
@@ -136,6 +140,20 @@ void update_score() {
     }
 }
 
+play_again() {
+    gtk_widget_set_visible(playarea_vbox, TRUE);
+    gtk_widget_set_visible(winscreen_vbox, FALSE);
+    score = 0;
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = 0;
+        }
+    }
+    gamestatus == 0;
+    spawn_number();
+    return FALSE;
+}
+
 void check_if_won() {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -147,38 +165,6 @@ void check_if_won() {
     if (gamestatus == 2) {
         gtk_widget_set_visible(playarea_vbox, FALSE);
         gtk_widget_set_visible(winscreen_vbox, TRUE);
-
-        GtkWidget *scorelabel = gtk_label_new("Error getting score :(");
-        gtk_box_append(GTK_BOX(score_info), scorelabel);
-        gtk_widget_set_halign(scorelabel, GTK_ALIGN_START);
-        char scorestring[32];
-        snprintf(scorestring, sizeof(scorestring), "Score: %d", score);
-        gtk_label_set_text(GTK_LABEL(scorelabel), scorestring);
-
-        GtkWidget *highscorelabel = gtk_label_new("Error getting highscore :(");
-        gtk_box_append(GTK_BOX(score_info), highscorelabel);
-        gtk_widget_set_halign(highscorelabel, GTK_ALIGN_START);
-        char highscorestring[32];
-        snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
-        gtk_label_set_text(GTK_LABEL(highscorelabel), highscorestring);
-
-        GtkWidget *movescountdisplay = gtk_label_new("Error getting moves count.");
-        gtk_box_append(GTK_BOX(score_info), movescountdisplay);
-        gtk_widget_set_halign(movescountdisplay, GTK_ALIGN_START);
-        char movescountstring[32];
-        snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
-        gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
-
-        // cpu_time_used
-        GtkWidget *timerlabel = gtk_label_new("Error getting time");
-        gtk_box_append(GTK_BOX(score_info), timerlabel);
-        gtk_widget_set_halign(timerlabel, GTK_ALIGN_START);
-        char timepassed[32];
-        snprintf(timepassed, sizeof(timepassed), "Time: %f", cpu_time_used);
-
-        GtkWidget *playAgain = gtk_button_new();
-        gtk_box_append(GTK_BOX(winscreen_vbox), playAgain);
-        gtk_widget_add_css_class(playAgain, "infoboxheading");
     }
     end = clock();
     cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -497,6 +483,9 @@ void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_
 }
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
+    if (gamestatus != 0) {
+        return FALSE;
+    }
     moves += 1;
     if (keyval == GDK_KEY_space) {
         // for (int i = 0; i < SIZE; i++) {
@@ -629,7 +618,7 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_visible(winscreen_vbox, FALSE);
 
     GtkWidget *won_heading = gtk_label_new("You won!");
-    gtk_widget_set_margin_bottom(won_heading, 10);
+    gtk_widget_set_margin_bottom(won_heading, 5);
     gtk_widget_add_css_class(won_heading, "infoboxheading");
     gtk_widget_set_hexpand(won_heading, TRUE);
     gtk_box_append(GTK_BOX(winscreen_vbox), won_heading);
@@ -637,7 +626,51 @@ void activate(GtkApplication *app, gpointer data) {
     score_info = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_widget_add_css_class(score_info, "infoboxhuge");
     gtk_box_append(GTK_BOX(winscreen_vbox), score_info);
+    gtk_widget_set_margin_bottom(score_info, 5);
 
+    scorelabel = gtk_label_new("Error getting score :(");
+    gtk_box_append(GTK_BOX(score_info), scorelabel);
+    gtk_widget_set_halign(scorelabel, GTK_ALIGN_START);
+    char scorestring[32];
+    snprintf(scorestring, sizeof(scorestring), "Score: %d", score);
+    gtk_label_set_text(GTK_LABEL(scorelabel), scorestring);
+
+    highscorelabel = gtk_label_new("Error getting highscore :(");
+    gtk_box_append(GTK_BOX(score_info), highscorelabel);
+    gtk_widget_set_halign(highscorelabel, GTK_ALIGN_START);
+    highscorestring[32];
+    snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
+    gtk_label_set_text(GTK_LABEL(highscorelabel), highscorestring);
+
+    movescountdisplay = gtk_label_new("Error getting moves count.");
+    gtk_box_append(GTK_BOX(score_info), movescountdisplay);
+    gtk_widget_set_halign(movescountdisplay, GTK_ALIGN_START);
+    
+    char movescountstring[32];
+    snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
+    gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
+
+    // cpu_time_used
+    GtkWidget *timerlabel = gtk_label_new("Error getting time");
+    gtk_box_append(GTK_BOX(score_info), timerlabel);
+    gtk_widget_set_halign(timerlabel, GTK_ALIGN_START);
+    char timepassed[32];
+    snprintf(timepassed, sizeof(timepassed), "Time: %f", cpu_time_used);
+
+    GtkWidget *shareButton = gtk_button_new();
+    gtk_box_append(GTK_BOX(winscreen_vbox), shareButton);
+    gtk_widget_add_css_class(shareButton, "infobutton");
+    gtk_widget_set_margin_bottom(shareButton, 5);
+    GtkWidget *shareLable = gtk_label_new("Get scoresheet");
+    gtk_button_set_child(GTK_BUTTON(shareButton), shareLable);
+    
+    GtkWidget *playAgain = gtk_button_new();
+    gtk_box_append(GTK_BOX(winscreen_vbox), playAgain);
+    gtk_widget_add_css_class(playAgain, "infobutton");
+    GtkWidget *buttonlable = gtk_label_new("Play Again!");
+    gtk_button_set_child(GTK_BUTTON(playAgain), buttonlable);
+
+    g_signal_connect(playAgain, "clicked", G_CALLBACK(play_again), NULL);
 
     //Background
     drawing_area = gtk_drawing_area_new ();
@@ -710,10 +743,10 @@ void activate(GtkApplication *app, gpointer data) {
     ".hundredtwentyeitht { background-color: #ff880038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".twohundredfiftysix { background-color: #ff730038; border: 1px solid rgba(255, 255, 0, 21); }"
     ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
-    ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 28px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
+    ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
-    ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 20px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".popover > contents > background { background-color: #000000ff; border-radius: 12px; }"
     ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; }");
     gtk_style_context_add_provider_for_display(
