@@ -153,7 +153,17 @@ void update_score() {
     }
 }
 
-play_again() {
+void update_timer() {
+    if (gamestatus != 2) {
+        end = clock();
+        cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+        char time_text[32];
+        snprintf(time_text, sizeof(time_text), "Time: %.2f sec", cpu_time_used);
+        gtk_label_set_text(GTK_LABEL(timerlabel), time_text);
+    }
+}
+
+bool play_again() {
     gtk_widget_set_visible(playarea_vbox, TRUE);
     gtk_widget_set_visible(winscreen_vbox, FALSE);
     score = 0;
@@ -193,9 +203,11 @@ void check_if_won() {
 
         char movescountstring[32];
         snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
+        gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
+
+        snprintf(highscorestring, sizeof(highscorestring), "Time: %.2f sec", cpu_time_used);
+        gtk_label_set_text(GTK_LABEL(timerlabel), highscorestring);
     }
-    end = clock();
-    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
 }
 
 void move_to_left() {
@@ -243,6 +255,7 @@ void move_to_left() {
     if (move)
         spawn_number();
     update_score();
+    moves += 1;
     for (times_changed; times_changed > 0; times_changed--) {
         play_pop_sound();
         sleep(0.2);
@@ -291,6 +304,7 @@ void moveright() {
     if (move) {
         spawn_number();
     }
+    moves += 1;
     update_score(score);
     for (times_changed; times_changed > 0; times_changed--) {
         play_pop_sound();
@@ -343,6 +357,7 @@ void move_upwards() {
 
     if (move)
         spawn_number();
+    moves += 1;
     update_score(score);
     for (times_changed; times_changed > 0; times_changed--) {
         play_pop_sound();
@@ -393,6 +408,7 @@ void move_down() {
 
     if (move)
         spawn_number();
+    moves += 1;
     update_score(score);
     for (times_changed; times_changed > 0; times_changed--) {
         play_pop_sound();
@@ -514,7 +530,6 @@ gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint k
     if (gamestatus != 0) {
         return FALSE;
     }
-    moves += 1;
     if (keyval == GDK_KEY_space) {
         // for (int i = 0; i < SIZE; i++) {
         //     for (int j = 0; j < SIZE; j++) {
@@ -678,17 +693,12 @@ void activate(GtkApplication *app, gpointer data) {
     movescountdisplay = gtk_label_new("Error getting moves count.");
     gtk_box_append(GTK_BOX(score_info), movescountdisplay);
     gtk_widget_set_halign(movescountdisplay, GTK_ALIGN_START);
-    
-    char movescountstring[32];
-    snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
-    gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
 
-    // cpu_time_used
     GtkWidget *timerlabel = gtk_label_new("Error getting time");
     gtk_box_append(GTK_BOX(score_info), timerlabel);
     gtk_widget_set_halign(timerlabel, GTK_ALIGN_START);
-    char timepassed[32];
-    snprintf(timepassed, sizeof(timepassed), "Time: %f", cpu_time_used);
+
+    g_timeout_add(1000, (GSourceFunc)update_timer, NULL);
 
     GtkWidget *shareButton = gtk_button_new();
     gtk_box_append(GTK_BOX(winscreen_vbox), shareButton);
