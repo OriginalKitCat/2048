@@ -40,6 +40,7 @@ bool tile_rotate = TRUE;
 float opacity = 0.21; //Don't works, just was a idea, but not important at the moment.
 bool sound_activated = true;
 int gamestatus = 0; // 0 playing, 1 lost, 2 won
+int number2spawn = 1024;
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
@@ -102,7 +103,7 @@ void spawn_number() {
         rand_x_numb = rand() % SIZE;
         rand_Y_numb = rand() % SIZE;
     }
-    update_cell(rand_x_numb, rand_Y_numb, 128);
+    update_cell(rand_x_numb, rand_Y_numb, number2spawn);
 }
 
 // void play_pop_sound() {
@@ -181,6 +182,11 @@ bool play_again() {
     return FALSE;
 }
 
+void export_score_png() {
+    //Just a placeholder at the moment
+    g_print("Feature not aviveable at the moment. Please look out for updates...");
+}
+
 void check_if_won() {
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -243,7 +249,6 @@ void move_to_left() {
             }
         }
 
-
         for (int j = 0; j < SIZE; j++) {
             if (board[i][j] != final_row[j]) {
                 move = 1;
@@ -258,7 +263,6 @@ void move_to_left() {
     moves += 1;
     for (times_changed; times_changed > 0; times_changed--) {
         play_pop_sound();
-        sleep(0.2);
     }
     check_if_won();
 }
@@ -580,6 +584,7 @@ void activate(GtkApplication *app, gpointer data) {
 
     playarea_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     gtk_overlay_add_overlay(GTK_OVERLAY(overeachother), playarea_vbox);
+    gtk_widget_set_visible(playarea_vbox, FALSE);
     // gtk_widget_set_visible(playarea_vbox, FALSE); // I have to comment this out when win screen is finished.
 
     // GtkWidget *overlay = gtk_overlay_new();
@@ -719,9 +724,56 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_margin_bottom(copyrightnote, 5);
 
     g_signal_connect(playAgain, "clicked", G_CALLBACK(play_again), NULL);
+    g_signal_connect(shareButton, "clicked", G_CALLBACK(export_score_png), NULL);
+
+    // Welcome Screen
+    GtkWidget *welcomeScreen = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_set_margin_top(welcomeScreen, 15);
+    gtk_widget_set_margin_bottom(welcomeScreen, 15);
+    gtk_widget_set_margin_start(welcomeScreen, 15);
+    gtk_widget_set_margin_end(welcomeScreen, 15);
+
+    gtk_overlay_add_overlay(GTK_OVERLAY(overeachother), welcomeScreen);
+    gtk_widget_set_visible(welcomeScreen, TRUE);
+
+    GtkWidget *twozeroheading_two = gtk_label_new("2048");
+    gtk_widget_set_margin_bottom(twozeroheading_two, 5);
+    gtk_widget_add_css_class(twozeroheading_two, "twozeroheadingcss");
+    gtk_box_append(GTK_BOX(welcomeScreen), twozeroheading_two);
+
+    GtkWidget *explain_label_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    gtk_widget_add_css_class(explain_label_box, "infoboxsmall");
+    //gtk_widget_add_css_class(explain_label_box, "score-label");
+    gtk_box_append(GTK_BOX(welcomeScreen), explain_label_box);
+
+    GtkWidget *explain_label_one = gtk_label_new("2048 is a game where you merge numbers");
+    gtk_box_append(GTK_BOX(explain_label_box), explain_label_one);
+
+    GtkWidget *explain_label_two = gtk_label_new("till you reach 2048. Use WASD / Arrow keys.");
+    gtk_box_append(GTK_BOX(explain_label_box), explain_label_two);
+
+    GtkWidget *button_normal = gtk_button_new();
+    gtk_box_append(GTK_BOX(welcomeScreen), button_normal);
+    gtk_widget_add_css_class(button_normal, "infobutton");
+    GtkWidget *button_normal_label = gtk_label_new("Normal");
+    gtk_button_set_child(GTK_BUTTON(button_normal), button_normal_label);
+
+    GtkWidget *button_easy = gtk_button_new();
+    gtk_box_append(GTK_BOX(welcomeScreen), button_easy);
+    gtk_widget_add_css_class(button_easy, "infobutton");
+    GtkWidget *button_easy_label = gtk_label_new("Easy");
+    gtk_button_set_child(GTK_BUTTON(button_easy), button_easy_label);
+
+    GtkWidget *button_very_easy = gtk_button_new();
+    gtk_box_append(GTK_BOX(welcomeScreen), button_very_easy);
+    gtk_widget_add_css_class(button_very_easy, "infobutton");
+    GtkWidget *button_very_easy_label = gtk_label_new("Too Easy");
+    gtk_button_set_child(GTK_BUTTON(button_very_easy), button_very_easy_label);
+
+
 
     //Background
-    drawing_area = gtk_drawing_area_new ();
+    drawing_area = gtk_drawing_area_new();
     gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (drawing_area), 400);
     gtk_drawing_area_set_content_height (GTK_DRAWING_AREA (drawing_area), 400);
     gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA (drawing_area), draw_function, NULL, NULL);
@@ -797,6 +849,7 @@ void activate(GtkApplication *app, gpointer data) {
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".infoboxsmall { background-color: #d4d4d438; color: #d6d6d69a; font-size: 16px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".twozeroheadingcss { color: #949494; font-size: 26px; font-weight: bold; }"
     ".copyright { color: #949494; font-size: 12px; font-weight: normal; } "
     ".popover > contents > background { background-color: #000000ff; border-radius: 12px; }"
