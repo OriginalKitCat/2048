@@ -8,6 +8,7 @@
 #include <math.h>
 #include <gio/gio.h>
 #include <gst/gst.h>
+#include <png.h>
 
 #define SIZE 4
 
@@ -29,6 +30,7 @@ GtkWidget *scorelabel;
 GtkWidget *highscorelabel;
 GtkWidget *movescountdisplay;
 GtkWidget *timerlabel;
+GtkWidget *welcomeScreen;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
@@ -39,7 +41,7 @@ int tiles_count_v = 7;
 bool tile_rotate = TRUE;
 float opacity = 0.21; //Don't works, just was a idea, but not important at the moment.
 bool sound_activated = true;
-int gamestatus = 0; // 0 playing, 1 lost, 2 won
+int gamestatus = 3; // 0 playing, 1 lost, 2 won, 3 start screen
 int number2spawn = 1024;
 
 int board[SIZE][SIZE] = {0};
@@ -59,6 +61,7 @@ void update_cell(int row, int col, int value) {
     snprintf(text, sizeof(text), "%d", value);
     gtk_label_set_text(GTK_LABEL(labels[row][col]), text);
     GtkWidget *frame = gtk_widget_get_parent(labels[row][col]);
+    gtk_widget_remove_css_class(frame, "one");
     gtk_widget_remove_css_class(frame, "two");
     gtk_widget_remove_css_class(frame, "four");
     gtk_widget_remove_css_class(frame, "eight");
@@ -71,7 +74,9 @@ void update_cell(int row, int col, int value) {
     gtk_widget_remove_css_class(frame, "thousendtwentyfour");
     gtk_widget_remove_css_class(frame, "normal");
 
-    if (value == 2)
+    if (value == 1)
+        gtk_widget_add_css_class(frame, "one");
+    else if (value == 2)
         gtk_widget_add_css_class(frame, "two");
     else if (value == 4)
         gtk_widget_add_css_class(frame, "four");
@@ -421,6 +426,93 @@ void move_down() {
     check_if_won();
 }
 
+void startgame() {
+    spawn_number();
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            int value = board[i][j];
+            update_cell(i, j, board[i][j]);
+        }
+    }
+    gtk_widget_set_visible(welcomeScreen, FALSE);
+    gtk_widget_set_visible(playarea_vbox, TRUE);
+    gamestatus = 0;
+}
+
+void dificulty_hard() {
+    number2spawn = 1;
+    startgame();
+}
+
+void dificulty_normal() {
+    number2spawn = 2;
+    startgame();
+}
+
+void dificulty_easy() {
+    number2spawn = 16;
+    startgame();
+}
+
+void dificulty_very_easy() {
+    number2spawn = 256;
+    startgame();
+}
+
+char *get_config_file_path(void)
+{
+    char *config_dir = g_build_filename(
+        g_get_user_config_dir(),
+        "apps.kitcat.game2048",
+        NULL
+    );
+
+    g_mkdir_with_parents(config_dir, 0700);
+
+    char *config_file = g_build_filename(
+        config_dir,
+        "config.ini",
+        NULL
+    );
+
+    g_free(config_dir);
+    return config_file;
+}
+
+void save_config(int highscore)
+{
+    GKeyFile *keyfile = g_key_file_new();
+    char *file_path = get_config_file_path();
+
+    g_key_file_set_integer(keyfile, "highscore", "high", highscore);
+
+    gsize length;
+    char *data = g_key_file_to_data(keyfile, &length, NULL);
+
+    g_file_set_contents(file_path, data, length, NULL);
+
+    g_free(data);
+    g_free(file_path);
+    g_key_file_free(keyfile);
+}
+
+void load_config(int *width, int *height, char **username)
+{
+    GKeyFile *keyfile = g_key_file_new();
+    char *file_path = get_config_file_path();
+
+    if (g_key_file_load_from_file(keyfile, file_path, G_KEY_FILE_NONE, NULL)) {
+
+        *width  = g_key_file_get_integer(keyfile, "window", "width", NULL);
+        *height = g_key_file_get_integer(keyfile, "window", "height", NULL);
+        *username = g_key_file_get_string(keyfile, "user", "name", NULL);
+    }
+
+    g_free(file_path);
+    g_key_file_free(keyfile);
+}
+
+
 static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
 {
     cairo_set_source_rgb(cr, 0, 0, 0);
@@ -531,30 +623,29 @@ void controlpadding(GtkWidget *window, GtkAllocation *allocation, gpointer user_
 }
 
 gboolean on_key_pressed(GtkEventControllerKey *controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data) {
-    if (gamestatus != 0) {
+    if (gamestatus == 0) {
+        if (keyval == GDK_KEY_space) {
+            // for (int i = 0; i < SIZE; i++) {
+            //     for (int j = 0; j < SIZE; j++) {
+            //         update_cell(i, j, 0);
+            //     }
+            // }
+            spawn_number();
+            return TRUE;
+        }
+        if (keyval == GDK_KEY_Left || keyval == GDK_KEY_A || keyval == GDK_KEY_a) {
+            move_to_left();
+        }
+        if (keyval == GDK_KEY_Right || keyval == GDK_KEY_D || keyval == GDK_KEY_d){
+            moveright();
+        }
+        if (keyval == GDK_KEY_Up || keyval == GDK_KEY_W || keyval == GDK_KEY_w){
+            move_upwards();
+        }
+        if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
+            move_down();
         return FALSE;
     }
-    if (keyval == GDK_KEY_space) {
-        // for (int i = 0; i < SIZE; i++) {
-        //     for (int j = 0; j < SIZE; j++) {
-        //         update_cell(i, j, 0);
-        //     }
-        // }
-        spawn_number();
-        return TRUE;
-    }
-    if (keyval == GDK_KEY_Left || keyval == GDK_KEY_A || keyval == GDK_KEY_a) {
-        move_to_left();
-    }
-    if (keyval == GDK_KEY_Right || keyval == GDK_KEY_D || keyval == GDK_KEY_d){
-        moveright();
-    }
-    if (keyval == GDK_KEY_Up || keyval == GDK_KEY_W || keyval == GDK_KEY_w){
-        move_upwards();
-    }
-    if (keyval == GDK_KEY_Down || keyval == GDK_KEY_S || keyval == GDK_KEY_s)
-        move_down();
-    return FALSE;
 }
 
 void menu_button_pressed(GtkButton *button, gpointer user_data)
@@ -654,7 +745,21 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_add_css_class(anotherplaceholderlable, "infobox");
     gtk_box_append(GTK_BOX(menu_vStack), anotherplaceholderlable);
 
+    GtkWidget *restart_game = gtk_button_new();
+    gtk_box_append(GTK_BOX(menu_vStack), restart_game);
+    gtk_widget_add_css_class(restart_game, "infobox");
+    GtkWidget *restart_h_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_button_set_child(GTK_BUTTON(restart_game), restart_h_box);
+    GtkWidget *restart_icon = gtk_image_new_from_file("lucide-icons/rotate-ccw.svg");
+    gtk_box_append(GTK_BOX(restart_h_box), restart_icon);
+    GtkWidget *restart_label = gtk_label_new("Play again!");
+    gtk_box_append(GTK_BOX(restart_h_box), restart_label);
+    gtk_label_set_xalign(GTK_LABEL(restart_label), 0.5f);
+    gtk_widget_set_hexpand(restart_label, TRUE);
+
     g_signal_connect(menubutton, "clicked", G_CALLBACK(menu_button_pressed), settings_popup);
+    g_signal_connect(restart_game, "clicked", G_CALLBACK(play_again), NULL);
+
 
     //Win screen
     winscreen_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
@@ -727,7 +832,7 @@ void activate(GtkApplication *app, gpointer data) {
     g_signal_connect(shareButton, "clicked", G_CALLBACK(export_score_png), NULL);
 
     // Welcome Screen
-    GtkWidget *welcomeScreen = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    welcomeScreen = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_widget_set_margin_top(welcomeScreen, 15);
     gtk_widget_set_margin_bottom(welcomeScreen, 15);
     gtk_widget_set_margin_start(welcomeScreen, 15);
@@ -737,12 +842,13 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_visible(welcomeScreen, TRUE);
 
     GtkWidget *twozeroheading_two = gtk_label_new("2048");
-    gtk_widget_set_margin_bottom(twozeroheading_two, 5);
+    gtk_widget_set_margin_bottom(twozeroheading_two, 2);
     gtk_widget_add_css_class(twozeroheading_two, "twozeroheadingcss");
     gtk_box_append(GTK_BOX(welcomeScreen), twozeroheading_two);
 
     GtkWidget *explain_label_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    gtk_widget_add_css_class(explain_label_box, "infoboxsmall");
+    gtk_widget_add_css_class(explain_label_box, "infotext_unboxed");
+    gtk_widget_set_margin_bottom(explain_label_box, 2);
     //gtk_widget_add_css_class(explain_label_box, "score-label");
     gtk_box_append(GTK_BOX(welcomeScreen), explain_label_box);
 
@@ -752,25 +858,43 @@ void activate(GtkApplication *app, gpointer data) {
     GtkWidget *explain_label_two = gtk_label_new("till you reach 2048. Use WASD / Arrow keys.");
     gtk_box_append(GTK_BOX(explain_label_box), explain_label_two);
 
+    GtkWidget *select_header = gtk_label_new("Select Gamemode");
+    gtk_widget_set_margin_bottom(select_header, 7);
+    gtk_widget_add_css_class(select_header, "selectgamemodecss");
+    gtk_box_append(GTK_BOX(welcomeScreen), select_header);
+
+    GtkWidget *buttonhard = gtk_button_new();
+    gtk_box_append(GTK_BOX(welcomeScreen), buttonhard);
+    gtk_widget_add_css_class(buttonhard, "infobutton");
+    GtkWidget *button_hard_label = gtk_label_new("Hard");
+    gtk_button_set_child(GTK_BUTTON(buttonhard), button_hard_label);
+    g_signal_connect(buttonhard, "clicked", G_CALLBACK(dificulty_hard), NULL);
+
     GtkWidget *button_normal = gtk_button_new();
     gtk_box_append(GTK_BOX(welcomeScreen), button_normal);
     gtk_widget_add_css_class(button_normal, "infobutton");
     GtkWidget *button_normal_label = gtk_label_new("Normal");
     gtk_button_set_child(GTK_BUTTON(button_normal), button_normal_label);
+    g_signal_connect(button_normal, "clicked", G_CALLBACK(dificulty_normal), NULL);
 
     GtkWidget *button_easy = gtk_button_new();
     gtk_box_append(GTK_BOX(welcomeScreen), button_easy);
     gtk_widget_add_css_class(button_easy, "infobutton");
     GtkWidget *button_easy_label = gtk_label_new("Easy");
     gtk_button_set_child(GTK_BUTTON(button_easy), button_easy_label);
+    g_signal_connect(button_easy, "clicked", G_CALLBACK(dificulty_easy), NULL);
 
     GtkWidget *button_very_easy = gtk_button_new();
     gtk_box_append(GTK_BOX(welcomeScreen), button_very_easy);
     gtk_widget_add_css_class(button_very_easy, "infobutton");
     GtkWidget *button_very_easy_label = gtk_label_new("Too Easy");
     gtk_button_set_child(GTK_BUTTON(button_very_easy), button_very_easy_label);
+    g_signal_connect(button_very_easy, "clicked", G_CALLBACK(dificulty_very_easy), NULL);
 
-
+    GtkWidget *copyrightnote_two = gtk_label_new("© 2025 KitCat / GNU GPLv3");
+    gtk_box_append(GTK_BOX(welcomeScreen), copyrightnote_two);
+    gtk_widget_add_css_class(copyrightnote_two, "copyright");
+    gtk_widget_set_margin_bottom(copyrightnote_two, 5);
 
     //Background
     drawing_area = gtk_drawing_area_new();
@@ -834,6 +958,7 @@ void activate(GtkApplication *app, gpointer data) {
     GtkCssProvider *css_provider = gtk_css_provider_new();
     gtk_css_provider_load_from_string(css_provider,
     ".normal { background-color: #d4d4d438; border: 1px solid rgba(255, 255, 0, 0.21); }"
+    ".one { background-color: #bbff003d; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".two { background-color: #ffee003d; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".four { background-color: #ffd0002c; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".eight { background-color: #ffbb0025; border: 1px solid rgba(255, 255, 0, 0.21); }"
@@ -849,8 +974,10 @@ void activate(GtkApplication *app, gpointer data) {
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
-    ".infoboxsmall { background-color: #d4d4d438; color: #d6d6d69a; font-size: 16px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".infoboxsmall { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".twozeroheadingcss { color: #949494; font-size: 26px; font-weight: bold; }"
+    ".selectgamemodecss { color: #949494; font-size: 20px; font-weight: bold; }"
+    ".infotext_unboxed { color: #949494; font-size: 16px; font-weight: normal; }"
     ".copyright { color: #949494; font-size: 12px; font-weight: normal; } "
     ".popover > contents > background { background-color: #000000ff; border-radius: 12px; }"
     ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; font-weight: bold;}");
@@ -859,13 +986,6 @@ void activate(GtkApplication *app, gpointer data) {
         GTK_STYLE_PROVIDER(css_provider),
         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     // update_cell(0, 2, 0);
-    spawn_number();
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            int value = board[i][j];
-            update_cell(i, j, board[i][j]);
-        }
-    }
     // controlpadding(window, grid);
     gtk_window_present(GTK_WINDOW(window));
 }
