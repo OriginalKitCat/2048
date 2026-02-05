@@ -31,6 +31,10 @@ GtkWidget *highscorelabel;
 GtkWidget *movescountdisplay;
 GtkWidget *timerlabel;
 GtkWidget *welcomeScreen;
+GtkWidget *restart_label;
+GtkWidget *soundeffectsicon;
+GtkWidget *soundeffectlabel;
+GtkWidget *backgrounmusiclabel;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
@@ -43,14 +47,18 @@ float opacity = 0.21; //Don't works, just was a idea, but not important at the m
 bool sound_activated = true;
 int gamestatus = 3; // 0 playing, 1 lost, 2 won, 3 start screen
 int number2spawn = 1024;
+bool soundeffectes = TRUE; 
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
 int highscore = 2008;
 int moves = 0;
 
-clock_t start, end;
-double cpu_time_used;
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+gint64 start_time;
 
 gchar *pop_sound_uri = "file:///home/adam/Projekte/gtk_apps/2048/sounds/pop.mp3";
 
@@ -160,18 +168,14 @@ void update_score() {
 }
 
 void update_timer() {
-    if (gamestatus != 2) {
-        end = clock();
-        cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
-        char time_text[32];
-        snprintf(time_text, sizeof(time_text), "Time: %.2f sec", cpu_time_used);
-        gtk_label_set_text(GTK_LABEL(timerlabel), time_text);
-    }
+    gint64 now = g_get_monotonic_time();
+    double elapsed = (now - start_time) / 1000000.0;
 }
 
 bool play_again() {
-    gtk_widget_set_visible(playarea_vbox, TRUE);
+    gtk_widget_set_visible(playarea_vbox, FALSE);
     gtk_widget_set_visible(winscreen_vbox, FALSE);
+    gtk_widget_set_visible(welcomeScreen, TRUE);
     score = 0;
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -182,12 +186,113 @@ bool play_again() {
     char highscorestring[32];
     snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
     gtk_label_set_text(GTK_LABEL(highscorelabel), highscorestring);
-    gamestatus = 0;
-    spawn_number();
+    gamestatus = 3;
     return FALSE;
 }
 
+static void draw_board(cairo_t *cr, int width, int height)
+{
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_paint(cr);
+
+    int canvas_size = 400;
+    canvas_size = width;
+
+    int onetilesize = canvas_size / tiles_count;
+
+    for (int j = 0; j < tiles_count_v; j++) {
+        for (int i = 0; i < tiles_count_h; i++) {
+            float localshaderstate = shader_state;
+            if (j % 2 == 1) {
+                if (i % 2 == 1) {
+                    localshaderstate = 1.0 - shader_state;
+                }
+            }
+            else {
+                if (i % 2 != 1) {
+                    localshaderstate = 1.0 - shader_state;
+                }
+            }
+            // if (tile_rotate) {
+            //     localshaderstate = 1.0 - shader_state;
+            // }
+            int point1x, point2x, point1y, point2y;
+
+            if (localshaderstate <= 0.5) {
+                point1x = localshaderstate * onetilesize;
+                point2x = onetilesize - localshaderstate * onetilesize;
+                point1y = 0.5 * onetilesize;
+                point2y = 0.5 * onetilesize;
+            } else {
+                point1x = 0.5 * onetilesize;
+                point2x = 0.5 * onetilesize;
+                point1y = onetilesize - localshaderstate * onetilesize;
+                point2y = localshaderstate * onetilesize;
+            }
+
+            cairo_set_source_rgba(cr, 1.0, 1.0, 0.0, 0.3);
+            if (localshaderstate <= 0.5) {
+                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+            }
+            else{
+                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
+                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
+                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
+            }
+        }
+    }
+
+    cairo_set_line_width (cr, 1);
+
+    cairo_stroke(cr);
+}
+
 void export_score_png() {
+    int width = 400;
+    int height = 400;
+
+    cairo_surface_t *surface =
+        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
+    draw_board(cr, width, height);
+}
+
+static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data) {
+    draw_board(cr, width, height);
+}
+
+void export_score_png() {
+    int width = 400;
+    int height = 400;
+
+    cairo_surface_t *surface =
+        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
+
+    draw_board(cr, width, height);
+
+    cairo_surface_write_to_png(surface, "board.png");
+
+    cairo_destroy(cr);
+    cairo_surface_destroy(surface);
+
+
     //Just a placeholder at the moment
     g_print("Feature not aviveable at the moment. Please look out for updates...");
 }
@@ -216,7 +321,10 @@ void check_if_won() {
         snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
         gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
 
-        snprintf(highscorestring, sizeof(highscorestring), "Time: %.2f sec", cpu_time_used);
+        gint64 now = g_get_monotonic_time();
+        double elapsed = (now - start_time) / 1000000.0;
+
+        snprintf(highscorestring, sizeof(highscorestring), "Time: %.2f sec", elapsed);
         gtk_label_set_text(GTK_LABEL(timerlabel), highscorestring);
     }
 }
@@ -266,8 +374,10 @@ void move_to_left() {
         spawn_number();
     update_score();
     moves += 1;
-    for (times_changed; times_changed > 0; times_changed--) {
-        play_pop_sound();
+    if (soundeffectes) {
+        for (times_changed; times_changed > 0; times_changed--) {
+            play_pop_sound();
+        }
     }
     check_if_won();
 }
@@ -315,9 +425,10 @@ void moveright() {
     }
     moves += 1;
     update_score(score);
-    for (times_changed; times_changed > 0; times_changed--) {
-        play_pop_sound();
-        sleep(0.2);
+    if (soundeffectes) {
+        for (times_changed; times_changed > 0; times_changed--) {
+            play_pop_sound();
+        }
     }
     check_if_won();
 }
@@ -368,9 +479,10 @@ void move_upwards() {
         spawn_number();
     moves += 1;
     update_score(score);
-    for (times_changed; times_changed > 0; times_changed--) {
-        play_pop_sound();
-        sleep(0.2);
+    if (soundeffectes) {
+        for (times_changed; times_changed > 0; times_changed--) {
+            play_pop_sound();
+        }
     }
     check_if_won();
 }
@@ -419,9 +531,10 @@ void move_down() {
         spawn_number();
     moves += 1;
     update_score(score);
-    for (times_changed; times_changed > 0; times_changed--) {
-        play_pop_sound();
-        sleep(0.2);
+    if (soundeffectes) {
+        for (times_changed; times_changed > 0; times_changed--) {
+            play_pop_sound();
+        }
     }
     check_if_won();
 }
@@ -436,6 +549,7 @@ void startgame() {
     }
     gtk_widget_set_visible(welcomeScreen, FALSE);
     gtk_widget_set_visible(playarea_vbox, TRUE);
+    start_time = g_get_monotonic_time();
     gamestatus = 0;
 }
 
@@ -512,78 +626,26 @@ void load_config(int *width, int *height, char **username)
     g_key_file_free(keyfile);
 }
 
-
-static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data)
-{
-    cairo_set_source_rgb(cr, 0, 0, 0);
-    cairo_paint(cr);
-
-    int canvas_size = 400;
-    canvas_size = width;
-
-    int onetilesize = canvas_size / tiles_count;
-
-    for (int j = 0; j < tiles_count_v; j++) {
-        for (int i = 0; i < tiles_count_h; i++) {
-            float localshaderstate = shader_state;
-            if (j % 2 == 1) {
-                if (i % 2 == 1) {
-                    localshaderstate = 1.0 - shader_state;
-                }
-            }
-            else {
-                if (i % 2 != 1) {
-                    localshaderstate = 1.0 - shader_state;
-                }
-            }
-            // if (tile_rotate) {
-            //     localshaderstate = 1.0 - shader_state;
-            // }
-            int point1x, point2x, point1y, point2y;
-
-            if (localshaderstate <= 0.5) {
-                point1x = localshaderstate * onetilesize;
-                point2x = onetilesize - localshaderstate * onetilesize;
-                point1y = 0.5 * onetilesize;
-                point2y = 0.5 * onetilesize;
-            } else {
-                point1x = 0.5 * onetilesize;
-                point2x = 0.5 * onetilesize;
-                point1y = onetilesize - localshaderstate * onetilesize;
-                point2y = localshaderstate * onetilesize;
-            }
-
-            cairo_set_source_rgba(cr, 1.0, 1.0, 0.0, 0.3);
-            if (localshaderstate <= 0.5) {
-                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
-                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
-                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-            }
-            else{
-                cairo_move_to (cr, 0 + i * onetilesize, 0 + j * onetilesize);
-                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_move_to (cr, 0 + i * onetilesize, onetilesize + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-                cairo_move_to (cr, onetilesize + i * onetilesize, 0 + j * onetilesize);
-                cairo_line_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_move_to (cr, onetilesize + i * onetilesize, onetilesize + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-                cairo_move_to (cr, point1x + i * onetilesize, point1y + j * onetilesize);
-                cairo_line_to (cr, point2x + i * onetilesize, point2y + j * onetilesize);
-            }
-        }
+void stop_start_music() {
+    if (soundeffectes == TRUE) {
+        soundeffectes = FALSE;
+        gtk_label_set_label(GTK_LABEL(backgrounmusiclabel), "Backgroundmusic off");
+    } else if (soundeffectes == FALSE){
+        soundeffectes = TRUE;
+        gtk_label_set_label(GTK_LABEL(backgrounmusiclabel), "Backgroundmusic on ");
     }
+}
 
-    cairo_set_line_width (cr, 1);
-
-    cairo_stroke(cr);
+void stop_start_sound() {
+    if (soundeffectes == TRUE) {
+        soundeffectes = FALSE;
+        gtk_image_set_from_file(GTK_IMAGE(soundeffectsicon), "lucide-icons/volume-x.svg");
+        gtk_label_set_label(GTK_LABEL(soundeffectlabel), "Sound Effects off");
+    } else if (soundeffectes == FALSE){
+        soundeffectes = TRUE;
+        gtk_image_set_from_file(GTK_IMAGE(soundeffectsicon), "lucide-icons/volume-2.svg");
+        gtk_label_set_label(GTK_LABEL(soundeffectlabel), "Sound Effects on");
+    }
 }
 
 gboolean update_shaderstate(gpointer data) {
@@ -737,28 +799,48 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_margin_start(menu_vStack, 15);
     gtk_widget_set_margin_end(menu_vStack, 15);
     gtk_popover_set_child(GTK_POPOVER(settings_popup), menu_vStack);
-    
-    GtkWidget *placeholder_label = gtk_label_new("This is just a placeholder");
-    gtk_widget_add_css_class(placeholder_label, "infobox");
-    gtk_box_append(GTK_BOX(menu_vStack), placeholder_label);
-    GtkWidget *anotherplaceholderlable = gtk_label_new("Just an other one.");
-    gtk_widget_add_css_class(anotherplaceholderlable, "infobox");
-    gtk_box_append(GTK_BOX(menu_vStack), anotherplaceholderlable);
+
+    GtkWidget *bgm_button = gtk_button_new();
+    gtk_box_append(GTK_BOX(menu_vStack), bgm_button);
+    gtk_widget_add_css_class(bgm_button, "sm_infobutton");
+    GtkWidget *bgm_h_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_button_set_child(GTK_BUTTON(bgm_button), bgm_h_box);
+    GtkWidget *bgm_icon = gtk_image_new_from_file("lucide-icons/piano.svg");
+    gtk_widget_set_margin_end(bgm_icon, 6);
+    gtk_box_append(GTK_BOX(bgm_h_box), bgm_icon);
+    backgrounmusiclabel = gtk_label_new("Backgroundmusic on ");
+    gtk_box_append(GTK_BOX(bgm_h_box), backgrounmusiclabel);
+    gtk_label_set_xalign(GTK_LABEL(bgm_h_box), 0.5f);
+    gtk_widget_set_hexpand(bgm_h_box, TRUE);
+
+    GtkWidget *effects_mute = gtk_button_new();
+    gtk_box_append(GTK_BOX(menu_vStack), effects_mute);
+    gtk_widget_add_css_class(effects_mute, "sm_infobutton");
+    GtkWidget *eff_mute_h_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_button_set_child(GTK_BUTTON(effects_mute), eff_mute_h_box);
+    soundeffectsicon = gtk_image_new_from_file("lucide-icons/volume-2.svg");
+    gtk_box_append(GTK_BOX(eff_mute_h_box), soundeffectsicon);
+    soundeffectlabel = gtk_label_new("Sound Effects on");
+    gtk_box_append(GTK_BOX(eff_mute_h_box), soundeffectlabel);
+    gtk_label_set_xalign(GTK_LABEL(soundeffectlabel), 0.5f);
+    gtk_widget_set_hexpand(soundeffectlabel, TRUE);
 
     GtkWidget *restart_game = gtk_button_new();
     gtk_box_append(GTK_BOX(menu_vStack), restart_game);
-    gtk_widget_add_css_class(restart_game, "infobox");
+    gtk_widget_add_css_class(restart_game, "sm_infobutton");
     GtkWidget *restart_h_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_button_set_child(GTK_BUTTON(restart_game), restart_h_box);
     GtkWidget *restart_icon = gtk_image_new_from_file("lucide-icons/rotate-ccw.svg");
     gtk_box_append(GTK_BOX(restart_h_box), restart_icon);
-    GtkWidget *restart_label = gtk_label_new("Play again!");
+    restart_label = gtk_label_new("Restart game");
     gtk_box_append(GTK_BOX(restart_h_box), restart_label);
     gtk_label_set_xalign(GTK_LABEL(restart_label), 0.5f);
     gtk_widget_set_hexpand(restart_label, TRUE);
 
     g_signal_connect(menubutton, "clicked", G_CALLBACK(menu_button_pressed), settings_popup);
     g_signal_connect(restart_game, "clicked", G_CALLBACK(play_again), NULL);
+    g_signal_connect(effects_mute, "clicked", G_CALLBACK(stop_start_sound), NULL);
+    g_signal_connect(bgm_button, "clicked", G_CALLBACK(stop_start_music), NULL);
 
 
     //Win screen
@@ -804,11 +886,9 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_box_append(GTK_BOX(score_info), movescountdisplay);
     gtk_widget_set_halign(movescountdisplay, GTK_ALIGN_START);
 
-    GtkWidget *timerlabel = gtk_label_new("Error getting time");
+    timerlabel = gtk_label_new("Error getting time");
     gtk_box_append(GTK_BOX(score_info), timerlabel);
     gtk_widget_set_halign(timerlabel, GTK_ALIGN_START);
-
-    g_timeout_add(1000, (GSourceFunc)update_timer, NULL);
 
     GtkWidget *shareButton = gtk_button_new();
     gtk_box_append(GTK_BOX(winscreen_vbox), shareButton);
@@ -970,6 +1050,8 @@ void activate(GtkApplication *app, gpointer data) {
     ".fivehundredtwelve { background-color: #ff5e0038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".thousendtwentyfour { background-color: #ff480038; border: 1px solid rgba(255, 255, 0, 0.21); }"
     ".infobox { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
+    ".sm_infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
+    ".sm_infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infobutton { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; background-image: none; }"
     ".infobutton:hover { background-color: #d4d4d460; background-image: none; }"
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
@@ -979,7 +1061,9 @@ void activate(GtkApplication *app, gpointer data) {
     ".selectgamemodecss { color: #949494; font-size: 20px; font-weight: bold; }"
     ".infotext_unboxed { color: #949494; font-size: 16px; font-weight: normal; }"
     ".copyright { color: #949494; font-size: 12px; font-weight: normal; } "
-    ".popover > contents > background { background-color: #000000ff; border-radius: 12px; }"
+    ".popover.background > contents { background-color: #000000ff; border: 1px solid rgba(255, 255, 0, 0.42); }"
+    ".popover.background > arrow{ background-color: #000000ff; border: 1px solid rgba(255, 255, 0, 0.42); }"
+    // ".popover > contents > background { background-color: #000000ff; border-radius: 12px; color: #000000ff; }"
     ".label { color: #d6d6d69a; font-size: 28px; font-weight: bold; font-weight: bold;}");
     gtk_style_context_add_provider_for_display(
         gdk_display_get_default(),
@@ -987,13 +1071,14 @@ void activate(GtkApplication *app, gpointer data) {
         GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     // update_cell(0, 2, 0);
     // controlpadding(window, grid);
+    start_time = g_get_monotonic_time();
     gtk_window_present(GTK_WINDOW(window));
 }
 
 int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
-    start = clock();
+    start_time = clock();
 
     gst_init(&argc, &argv);
 
