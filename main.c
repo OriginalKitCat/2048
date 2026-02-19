@@ -190,6 +190,16 @@ bool play_again() {
     return FALSE;
 }
 
+void cairo_rounded_rectangle(cairo_t *cr, double x, double y, double width, double height, double radius) {
+    double degrees = M_PI / 180.0;
+    cairo_new_sub_path(cr);
+    cairo_arc(cr, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+    cairo_arc(cr, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
+    cairo_arc(cr, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
+    cairo_arc(cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+    cairo_close_path(cr);
+}
+
 static void draw_board(cairo_t *cr, int width, int height)
 {
     cairo_set_source_rgb(cr, 0, 0, 0);
@@ -263,29 +273,47 @@ static void draw_board(cairo_t *cr, int width, int height)
     cairo_stroke(cr);
 }
 
-void export_score_png() {
-    int width = 400;
-    int height = 400;
-
-    cairo_surface_t *surface =
-        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-    cairo_t *cr = cairo_create(surface);
-    draw_board(cr, width, height);
-}
-
 static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int height, gpointer data) {
     draw_board(cr, width, height);
 }
 
 void export_score_png() {
     int width = 400;
-    int height = 400;
+    int height = 450;
+    int onetilesize =  width / tiles_count;
 
-    cairo_surface_t *surface =
-        cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_text_extents_t extents;
+    double x_that_centers_that_damm_text;
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
     cairo_t *cr = cairo_create(surface);
 
     draw_board(cr, width, height);
+
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size(cr, 26);
+    cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
+
+    cairo_text_extents(cr, "2048", &extents);
+    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    cairo_move_to(cr, x_that_centers_that_damm_text, onetilesize - 24);
+    cairo_show_text(cr, "2048");
+    cairo_stroke(cr);
+
+    cairo_text_extents(cr, "You won!", &extents);
+
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.21);
+    cairo_rounded_rectangle(cr, 15, onetilesize - 9, 370, 60 + extents.height, 20);
+    cairo_fill(cr);
+    cairo_set_source_rgb(cr, 1, 1, 0);
+    cairo_set_line_width(cr, 0.4);
+    cairo_rounded_rectangle(cr, 15, onetilesize - 9, 370, 60 + extents.height, 20);
+    cairo_stroke(cr);
+
+    cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
+    cairo_set_font_size(cr, 18);
+    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    cairo_move_to(cr, x_that_centers_that_damm_text, onetilesize + extents.height + 15);
+    cairo_show_text(cr, "You won!");
 
     cairo_surface_write_to_png(surface, "board.png");
 
@@ -903,7 +931,7 @@ void activate(GtkApplication *app, gpointer data) {
     GtkWidget *buttonlable = gtk_label_new("Play Again!");
     gtk_button_set_child(GTK_BUTTON(playAgain), buttonlable);
 
-    GtkWidget *copyrightnote = gtk_label_new("© 2025 KitCat / GNU GPLv3");
+    GtkWidget *copyrightnote = gtk_label_new("© 2026 KitCat / GNU GPLv3");
     gtk_box_append(GTK_BOX(winscreen_vbox), copyrightnote);
     gtk_widget_add_css_class(copyrightnote, "copyright");
     gtk_widget_set_margin_bottom(copyrightnote, 5);
@@ -971,7 +999,7 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_button_set_child(GTK_BUTTON(button_very_easy), button_very_easy_label);
     g_signal_connect(button_very_easy, "clicked", G_CALLBACK(dificulty_very_easy), NULL);
 
-    GtkWidget *copyrightnote_two = gtk_label_new("© 2025 KitCat / GNU GPLv3");
+    GtkWidget *copyrightnote_two = gtk_label_new("© 2026 KitCat / GNU GPLv3");
     gtk_box_append(GTK_BOX(welcomeScreen), copyrightnote_two);
     gtk_widget_add_css_class(copyrightnote_two, "copyright");
     gtk_widget_set_margin_bottom(copyrightnote_two, 5);
@@ -1057,7 +1085,7 @@ void activate(GtkApplication *app, gpointer data) {
     ".infoboxheading { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: bold; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infoboxhuge { background-color: #d4d4d438; color: #d6d6d69a; font-size: 18px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
     ".infoboxsmall { background-color: #d4d4d438; color: #d6d6d69a; font-size: 14px; font-weight: normal; border: 1px solid rgba(255, 255, 0, 0.21); border-radius: 12px; padding: 15px; }"
-    ".twozeroheadingcss { color: #949494; font-size: 26px; font-weight: bold; }"
+    ".twozeroheadingcss { color: #949494ff; font-size: 26px; font-weight: bold; }"
     ".selectgamemodecss { color: #949494; font-size: 20px; font-weight: bold; }"
     ".infotext_unboxed { color: #949494; font-size: 16px; font-weight: normal; }"
     ".copyright { color: #949494; font-size: 12px; font-weight: normal; } "
