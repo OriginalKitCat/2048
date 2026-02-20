@@ -53,6 +53,7 @@ int board[SIZE][SIZE] = {0};
 int score = 0;
 int highscore = 2008;
 int moves = 0;
+double elapsed;
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -286,34 +287,67 @@ void export_score_png() {
     double x_that_centers_that_damm_text;
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
     cairo_t *cr = cairo_create(surface);
+    int temp_dist;
 
     draw_board(cr, width, height);
 
-    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+    cairo_select_font_face(cr, "Cantarell", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 26);
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
 
     cairo_text_extents(cr, "2048", &extents);
     x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
-    cairo_move_to(cr, x_that_centers_that_damm_text, onetilesize - 24);
+    cairo_move_to(cr, x_that_centers_that_damm_text, 25 + extents.height);
     cairo_show_text(cr, "2048");
     cairo_stroke(cr);
-
-    cairo_text_extents(cr, "You won!", &extents);
+    temp_dist = extents.height;
 
     cairo_set_source_rgba(cr, 1, 1, 1, 0.21);
-    cairo_rounded_rectangle(cr, 15, onetilesize - 9, 370, 60 + extents.height, 20);
+    cairo_rounded_rectangle(cr, 15, extents.height + 45, 370, 35 + extents.height, 12);
     cairo_fill(cr);
     cairo_set_source_rgb(cr, 1, 1, 0);
     cairo_set_line_width(cr, 0.4);
-    cairo_rounded_rectangle(cr, 15, onetilesize - 9, 370, 60 + extents.height, 20);
+    cairo_rounded_rectangle(cr, 15, extents.height + 45, 370, 35 + extents.height, 12);
+    cairo_stroke(cr);
+    temp_dist += 45;
+
+    cairo_set_font_size(cr, 18);
+    cairo_text_extents(cr, "You won!", &extents);
+    cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
+    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    cairo_move_to(cr, x_that_centers_that_damm_text, extents.height + temp_dist + 20);
+    cairo_show_text(cr, "You won!");
+    temp_dist += 35 + extents.height;
+
+    char scorestring[32];
+    snprintf(scorestring, sizeof(scorestring), "Score: %d", score);
+    char highscorestring[32];
+    snprintf(highscorestring, sizeof(highscorestring), "Highscore: %d", highscore);
+    char movescountstring[32];
+    snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
+    char timerstring[32];
+    snprintf(timerstring, sizeof(timerstring), "Time: %.2f sec", elapsed);
+
+    cairo_select_font_face(cr, "Cantarell", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_text_extents(cr, scorestring, &extents);
+
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.21);
+    cairo_rounded_rectangle(cr, 15, 20 + temp_dist, 370, 18 + 4 * extents.height + 30, 12);
+    cairo_fill(cr);
+    cairo_set_source_rgb(cr, 1, 1, 0);
+    cairo_set_line_width(cr, 0.4);
+    cairo_rounded_rectangle(cr, 15, temp_dist + 20, 370, temp_dist + 40 + 4 * extents.height + 60, 12);
     cairo_stroke(cr);
 
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
-    cairo_set_font_size(cr, 18);
-    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
-    cairo_move_to(cr, x_that_centers_that_damm_text, onetilesize + extents.height + 15);
-    cairo_show_text(cr, "You won!");
+    cairo_move_to(cr, 30, temp_dist + 40 + extents.height);
+    cairo_show_text(cr, scorestring);
+    cairo_move_to(cr, 30, temp_dist + 40 + 2 * extents.height + 15);
+    cairo_show_text(cr, highscorestring);
+    cairo_move_to(cr, 30, temp_dist + 40 + 3 * extents.height + 30);
+    cairo_show_text(cr, movescountstring);
+    cairo_move_to(cr, 30, temp_dist + 40 + 4 * extents.height + 45);
+    cairo_show_text(cr, timerstring);
 
     cairo_surface_write_to_png(surface, "board.png");
 
@@ -322,7 +356,7 @@ void export_score_png() {
 
 
     //Just a placeholder at the moment
-    g_print("Feature not aviveable at the moment. Please look out for updates...");
+    g_print("Feature not finished yet. Please look out for updates...");
 }
 
 void check_if_won() {
@@ -350,10 +384,11 @@ void check_if_won() {
         gtk_label_set_text(GTK_LABEL(movescountdisplay), movescountstring);
 
         gint64 now = g_get_monotonic_time();
-        double elapsed = (now - start_time) / 1000000.0;
+        elapsed = (now - start_time) / 1000000.0;
 
-        snprintf(highscorestring, sizeof(highscorestring), "Time: %.2f sec", elapsed);
-        gtk_label_set_text(GTK_LABEL(timerlabel), highscorestring);
+        char timerstring[32];
+        snprintf(timerstring, sizeof(timerstring), "Time: %.2f sec", elapsed);
+        gtk_label_set_text(GTK_LABEL(timerlabel), timerstring);
     }
 }
 
