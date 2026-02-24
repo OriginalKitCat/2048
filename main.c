@@ -328,7 +328,7 @@ void export_score_png() {
     cairo_stroke(cr);
     temp_dist += 45;
 
-    cairo_set_font_size(cr, 18);
+    cairo_set_font_size(cr, 22);
     cairo_text_extents(cr, "You won!", &extents);
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
     x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
@@ -369,7 +369,30 @@ void export_score_png() {
     cairo_show_text(cr, timerstring);
     cairo_move_to(cr, 30, temp_dist + 40 + 5 * extents.height + 60);
     cairo_show_text(cr, gamemodestring);
-    temp_dist +=  18 + 5 * extents.height + 65;
+    temp_dist +=  18 + 5 * extents.height + 120;
+
+    cairo_set_font_size(cr, 24);
+    cairo_text_extents(cr, "Download now!", &extents);
+    cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
+    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    cairo_move_to(cr, x_that_centers_that_damm_text, temp_dist + extents.height);
+    cairo_show_text(cr, "Download now!");
+    temp_dist += extents.height + 20;
+
+    cairo_set_font_size(cr, 22);
+    cairo_text_extents(cr, "tiny.cc/kit2048", &extents);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.21);
+    cairo_rounded_rectangle(cr, 15, temp_dist, 370, 30 + extents.height, 12);
+    cairo_fill(cr);
+    cairo_set_source_rgb(cr, 1, 1, 0);
+    cairo_set_line_width(cr, 0.4);
+    cairo_rounded_rectangle(cr, 15, temp_dist, 370, 30 + extents.height, 12);
+    cairo_stroke(cr);
+
+    cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
+    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    cairo_move_to(cr, x_that_centers_that_damm_text, temp_dist + extents.height + 10);
+    cairo_show_text(cr, "tiny.cc/kit2048");
 
     cairo_surface_write_to_png(surface, "board.png");
 
