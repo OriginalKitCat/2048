@@ -155,6 +155,23 @@ void play_background_music() {
     gst_element_set_state(backgroundpipe, GST_STATE_PLAYING);
 }
 
+char *getgamemode() {
+    if (number2spawn == 1) {
+        return "Hard";
+    } else if (number2spawn == 2)
+    {
+        return "Normal";
+    } else if (number2spawn == 16)
+    {
+        return "Easy";
+    } else if (number2spawn == 256)
+    {
+        return "Too Easy";
+    }
+
+    return "Unknown Error";
+}
+
 void update_score() {
     char score_text[32];
     snprintf(score_text, sizeof(score_text), "Score: %d", score);
@@ -327,16 +344,18 @@ void export_score_png() {
     snprintf(movescountstring, sizeof(movescountstring), "Moves Count: %d", moves);
     char timerstring[32];
     snprintf(timerstring, sizeof(timerstring), "Time: %.2f sec", elapsed);
+    char gamemodestring[32];
+    snprintf(gamemodestring, sizeof(gamemodestring), "Gamemode: %s", getgamemode());
 
     cairo_select_font_face(cr, "Cantarell", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_text_extents(cr, scorestring, &extents);
 
     cairo_set_source_rgba(cr, 1, 1, 1, 0.21);
-    cairo_rounded_rectangle(cr, 15, 20 + temp_dist, 370, 18 + 4 * extents.height + 30, 12);
+    cairo_rounded_rectangle(cr, 15, 20 + temp_dist, 370, 40 + 5 * extents.height + 60, 12);
     cairo_fill(cr);
     cairo_set_source_rgb(cr, 1, 1, 0);
     cairo_set_line_width(cr, 0.4);
-    cairo_rounded_rectangle(cr, 15, temp_dist + 20, 370, temp_dist + 40 + 4 * extents.height + 60, 12);
+    cairo_rounded_rectangle(cr, 15, temp_dist + 20, 370, 40 + 5 * extents.height + 60, 12);
     cairo_stroke(cr);
 
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
@@ -348,6 +367,9 @@ void export_score_png() {
     cairo_show_text(cr, movescountstring);
     cairo_move_to(cr, 30, temp_dist + 40 + 4 * extents.height + 45);
     cairo_show_text(cr, timerstring);
+    cairo_move_to(cr, 30, temp_dist + 40 + 5 * extents.height + 60);
+    cairo_show_text(cr, gamemodestring);
+    temp_dist +=  18 + 5 * extents.height + 65;
 
     cairo_surface_write_to_png(surface, "board.png");
 
