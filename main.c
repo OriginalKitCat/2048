@@ -18,6 +18,7 @@
 // GstElement *playbin;
 GError *error = NULL;
 
+GtkWidget *window;
 GtkWidget *playarea_vbox;
 GtkWidget *winscreen_vbox;
 GtkWidget *labels[SIZE][SIZE];
@@ -35,6 +36,7 @@ GtkWidget *restart_label;
 GtkWidget *soundeffectsicon;
 GtkWidget *soundeffectlabel;
 GtkWidget *backgrounmusiclabel;
+GtkWidget *won_heading;
 float shader_state = 0.5; // Don't use more than 2 decimals, 4 are theoretically possible but don't do this!
 int shader_state_direaction = 1;
 float shader_speed = 0.01; // Should be not to large...
@@ -51,9 +53,10 @@ bool soundeffectes = TRUE;
 
 int board[SIZE][SIZE] = {0};
 int score = 0;
-int highscore = 2008;
+int highscore = 0;
 int moves = 0;
 double elapsed;
+char *save_to_path;
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -208,6 +211,26 @@ bool play_again() {
     return FALSE;
 }
 
+// voidsave_callback (GObject *source_object, GAsyncResult *res, gpointer user_data) {
+//     GtkFileDialog *dialog = GTK_FILE_DIALOG (source_object);
+//     GError *error = NULL;
+//     GFile *file = gtk_file_dialog_save_finish (dialog, res, &error);
+//     if (error) {
+//         g_printerr ("Fehler: %s\n", error->message);
+//         g_error_free (error);
+//         return;
+//     }
+//     if (file) {
+//         char *path = g_file_get_path (file);
+//         if (path) {
+//             g_print ("Speicherpfad: %s\n", path);
+//             cairo_surface_write_to_png(surface, path);
+//             g_free (path);
+//         }
+//         g_object_unref (file);
+//     }
+// }
+
 void cairo_rounded_rectangle(cairo_t *cr, double x, double y, double width, double height, double radius) {
     double degrees = M_PI / 180.0;
     cairo_new_sub_path(cr);
@@ -295,15 +318,34 @@ static void draw_function(GtkDrawingArea *area, cairo_t *cr, int width, int heig
     draw_board(cr, width, height);
 }
 
-void export_score_png() {
+void export_score_png(GObject *object, GAsyncResult *result, gpointer user_data) {
+    GtkFileDialog *dialog = GTK_FILE_DIALOG(user_data);
+    GError *error = NULL;
+    GFile *file = gtk_file_dialog_save_finish(dialog, result, &error);
+
+    if (!file) {
+        if (error) {
+            g_warning("Error saving file: %s", error->message);
+            g_error_free(error);
+        }
+        return;
+    }
+
+    gchar *file_path = g_file_get_path(file);
+    g_object_unref(file);
+
+    if (!file_path)
+        return;
+
     int width = 400;
     int height = 450;
-    int onetilesize =  width / tiles_count;
+    int onetilesize = width / tiles_count;
+
+    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+    cairo_t *cr = cairo_create(surface);
 
     cairo_text_extents_t extents;
     double x_that_centers_that_damm_text;
-    cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
-    cairo_t *cr = cairo_create(surface);
     int temp_dist;
 
     draw_board(cr, width, height);
@@ -313,7 +355,7 @@ void export_score_png() {
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
 
     cairo_text_extents(cr, "2048", &extents);
-    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    x_that_centers_that_damm_text = (width - extents.width) / 2 - extents.x_bearing;
     cairo_move_to(cr, x_that_centers_that_damm_text, 25 + extents.height);
     cairo_show_text(cr, "2048");
     cairo_stroke(cr);
@@ -331,7 +373,7 @@ void export_score_png() {
     cairo_set_font_size(cr, 22);
     cairo_text_extents(cr, "You won!", &extents);
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
-    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    x_that_centers_that_damm_text = (width - extents.width) / 2 - extents.x_bearing;
     cairo_move_to(cr, x_that_centers_that_damm_text, extents.height + temp_dist + 20);
     cairo_show_text(cr, "You won!");
     temp_dist += 35 + extents.height;
@@ -369,12 +411,12 @@ void export_score_png() {
     cairo_show_text(cr, timerstring);
     cairo_move_to(cr, 30, temp_dist + 40 + 5 * extents.height + 60);
     cairo_show_text(cr, gamemodestring);
-    temp_dist +=  18 + 5 * extents.height + 120;
+    temp_dist += 18 + 5 * extents.height + 120;
 
     cairo_set_font_size(cr, 24);
     cairo_text_extents(cr, "Download now!", &extents);
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
-    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    x_that_centers_that_damm_text = (width - extents.width) / 2 - extents.x_bearing;
     cairo_move_to(cr, x_that_centers_that_damm_text, temp_dist + extents.height);
     cairo_show_text(cr, "Download now!");
     temp_dist += extents.height + 20;
@@ -390,18 +432,22 @@ void export_score_png() {
     cairo_stroke(cr);
 
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
-    x_that_centers_that_damm_text = (width  - extents.width)  / 2 - extents.x_bearing;
+    x_that_centers_that_damm_text = (width - extents.width) / 2 - extents.x_bearing;
     cairo_move_to(cr, x_that_centers_that_damm_text, temp_dist + extents.height + 10);
     cairo_show_text(cr, "tiny.cc/kit2048");
 
-    cairo_surface_write_to_png(surface, "board.png");
+    cairo_surface_write_to_png(surface, file_path);
 
+    g_free(file_path);
     cairo_destroy(cr);
     cairo_surface_destroy(surface);
+}
 
+void save_image(GtkWindow *window) {
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+    gtk_file_dialog_set_title(dialog, "Save Image");
 
-    //Just a placeholder at the moment
-    g_print("Feature not finished yet. Please look out for updates...");
+    gtk_file_dialog_save(dialog, window, NULL, export_score_png, dialog);
 }
 
 void check_if_won() {
@@ -412,7 +458,7 @@ void check_if_won() {
             }
         }
     }
-    if (gamestatus == 2) {
+    if (gamestatus == 2 || gamestatus == 1) {
         gtk_widget_set_visible(playarea_vbox, FALSE);
         gtk_widget_set_visible(winscreen_vbox, TRUE);
 
@@ -434,7 +480,31 @@ void check_if_won() {
         char timerstring[32];
         snprintf(timerstring, sizeof(timerstring), "Time: %.2f sec", elapsed);
         gtk_label_set_text(GTK_LABEL(timerlabel), timerstring);
+
+        if (gamestatus == 1) {
+            gtk_label_set_text(GTK_LABEL(won_heading), "You lost");
+        } else {
+            gtk_label_set_text(GTK_LABEL(won_heading), "You won");
+        }
     }
+}
+
+int check_for_loose() {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            if (board[i][j] == 0) {
+                return 0;
+            }
+            if (j < SIZE - 1 && board[i][j] == board[i][j + 1]) {
+                return 0;
+            }
+            if (i < SIZE - 1 && board[i][j] == board[i + 1][j]) {
+                return 0;
+            }
+        }
+    }
+    g_print("Game status changed to 1\n");
+    return 1;
 }
 
 void move_to_left() {
@@ -487,6 +557,7 @@ void move_to_left() {
             play_pop_sound();
         }
     }
+    gamestatus = check_for_loose();
     check_if_won();
 }
 
@@ -538,6 +609,7 @@ void moveright() {
             play_pop_sound();
         }
     }
+    gamestatus = check_for_loose();
     check_if_won();
 }
 
@@ -592,6 +664,7 @@ void move_upwards() {
             play_pop_sound();
         }
     }
+    gamestatus = check_for_loose();
     check_if_won();
 }
 
@@ -644,6 +717,7 @@ void move_down() {
             play_pop_sound();
         }
     }
+    gamestatus = check_for_loose();
     check_if_won();
 }
 
@@ -834,7 +908,7 @@ void menu_button_pressed(GtkButton *button, gpointer user_data)
 void activate(GtkApplication *app, gpointer data) {
     gst_init(NULL, NULL);
 
-    GtkWidget *window = gtk_application_window_new(app);
+    window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "2048");
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 450);
     gtk_widget_set_focusable(GTK_WIDGET(window), TRUE);
@@ -965,7 +1039,7 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_add_css_class(twozeroheading, "twozeroheadingcss");
     gtk_box_append(GTK_BOX(winscreen_vbox), twozeroheading);
 
-    GtkWidget *won_heading = gtk_label_new("You won!");
+    won_heading = gtk_label_new("You won!");
     gtk_widget_set_margin_bottom(won_heading, 5);
     gtk_widget_add_css_class(won_heading, "infoboxheading");
     gtk_widget_set_hexpand(won_heading, TRUE);
@@ -1017,7 +1091,7 @@ void activate(GtkApplication *app, gpointer data) {
     gtk_widget_set_margin_bottom(copyrightnote, 5);
 
     g_signal_connect(playAgain, "clicked", G_CALLBACK(play_again), NULL);
-    g_signal_connect(shareButton, "clicked", G_CALLBACK(export_score_png), NULL);
+    g_signal_connect(shareButton, "clicked", G_CALLBACK(save_image), window);;
 
     // Welcome Screen
     welcomeScreen = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
