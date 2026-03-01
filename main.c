@@ -14,6 +14,7 @@
 
 // Just for my self to remember
 // Pop Sound https://pixabay.com/sound-effects/pop-402323/
+// Bonk Sound https://pixabay.com/sound-effects/film-special-effects-bonk-99378/
 
 // GstElement *playbin;
 GError *error = NULL;
@@ -62,9 +63,16 @@ char *save_to_path;
 #define M_PI 3.14159265358979323846
 #endif
 
+GstElement *backgroundpipe = NULL;
+
 gint64 start_time;
 
 gchar *pop_sound_uri = "file:///home/adam/Projekte/gtk_apps/2048/sounds/pop.mp3";
+gchar *bonk_sound_uri = "file:///home/adam/Projekte/gtk_apps/2048/sounds/bonk.mp3";
+gchar *background_uri = "file:///home/adam/Projekte/gtk_apps/2048/sounds/lofi-bakground.mp3";
+
+GstElement *pop_sound_pipeline = NULL;
+GstElement *bonk_sound_pipeline = NULL;
 
 void update_cell(int row, int col, int value) {
     board[row][col] = value;
@@ -146,16 +154,54 @@ void spawn_number() {
 //     gst_object_unref(pipeline);
 // }
 
+void preload_pop_sound() {
+    pop_sound_pipeline = gst_element_factory_make("playbin", "pop-sound");
+    if (!pop_sound_pipeline) {
+        g_printerr("Failed to create pop sound pipeline\n");
+        return;
+    }
+    g_object_set(pop_sound_pipeline, "uri", pop_sound_uri, NULL);
+}
+
+void preload_bonk_sound() {
+    bonk_sound_pipeline = gst_element_factory_make("playbin", "bonk-sound");
+    if (!bonk_sound_pipeline) {
+        g_printerr("Failed to create bonk sound pipeline\n");
+        return;
+    }
+    g_object_set(bonk_sound_pipeline, "uri", bonk_sound_uri, NULL);
+}
+
 void play_pop_sound() {
-    GstElement *pipeline = gst_parse_launch("playbin uri=NULL", NULL);
-    g_object_set(pipeline, "uri", pop_sound_uri, NULL);
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    if (pop_sound_pipeline) {
+        gst_element_set_state(pop_sound_pipeline, GST_STATE_PLAYING);
+    } else {
+        g_printerr("Pop sound pipeline is not initialized\n");
+    }
+}
+
+void play_bonk_sound() {
+    if (bonk_sound_pipeline) {
+        gst_element_set_state(bonk_sound_pipeline, GST_STATE_PLAYING);
+    } else {
+        g_printerr("Bonk sound pipeline is not initialized\n");
+    }
+}
+
+void init_background_music(const char *uri) {
+    backgroundpipe = gst_element_factory_make("playbin", "bgmusic");
+    g_object_set(backgroundpipe, "uri", uri, NULL);
+    g_object_set(backgroundpipe, "volume", 0.3, NULL); 
 }
 
 void play_background_music() {
-    GstElement *backgroundpipe = gst_parse_launch("playbin uri=NULL", NULL);
-    g_object_set(backgroundpipe, "uri", pop_sound_uri, NULL);
-    gst_element_set_state(backgroundpipe, GST_STATE_PLAYING);
+    if (backgroundpipe)
+        gst_element_set_state(backgroundpipe, GST_STATE_PLAYING);
+}
+
+void stop_background_music() {
+    if (backgroundpipe)
+        gst_element_set_state(backgroundpipe, GST_STATE_NULL);
 }
 
 char *getgamemode() {
@@ -370,12 +416,20 @@ void export_score_png(GObject *object, GAsyncResult *result, gpointer user_data)
     cairo_stroke(cr);
     temp_dist += 45;
 
+    char *won_or_loose_heading;
+    if (gamestatus == 2) {
+        won_or_loose_heading = "You won!";
+    } else if (gamestatus == 1)
+    {
+        won_or_loose_heading = "You lost!";
+    }
+
     cairo_set_font_size(cr, 22);
-    cairo_text_extents(cr, "You won!", &extents);
+    cairo_text_extents(cr, won_or_loose_heading, &extents);
     cairo_set_source_rgb(cr, 0.58, 0.58, 0.58);
     x_that_centers_that_damm_text = (width - extents.width) / 2 - extents.x_bearing;
     cairo_move_to(cr, x_that_centers_that_damm_text, extents.height + temp_dist + 20);
-    cairo_show_text(cr, "You won!");
+    cairo_show_text(cr, won_or_loose_heading);
     temp_dist += 35 + extents.height;
 
     char scorestring[32];
@@ -446,7 +500,7 @@ void export_score_png(GObject *object, GAsyncResult *result, gpointer user_data)
 void save_image(GtkWindow *window) {
     GtkFileDialog *dialog = gtk_file_dialog_new();
     gtk_file_dialog_set_title(dialog, "Save Image");
-
+    gtk_file_dialog_set_initial_name(dialog, "2048-score.png");
     gtk_file_dialog_save(dialog, window, NULL, export_score_png, dialog);
 }
 
@@ -553,7 +607,10 @@ void move_to_left() {
     update_score();
     moves += 1;
     if (soundeffectes) {
-        for (times_changed; times_changed > 0; times_changed--) {
+        if (times_changed == 0) {
+            play_bonk_sound();
+        }
+        if (times_changed > 0) {
             play_pop_sound();
         }
     }
@@ -605,7 +662,10 @@ void moveright() {
     moves += 1;
     update_score(score);
     if (soundeffectes) {
-        for (times_changed; times_changed > 0; times_changed--) {
+        if (times_changed == 0) {
+            play_bonk_sound();
+        }
+        if (times_changed > 0) {
             play_pop_sound();
         }
     }
@@ -660,7 +720,10 @@ void move_upwards() {
     moves += 1;
     update_score(score);
     if (soundeffectes) {
-        for (times_changed; times_changed > 0; times_changed--) {
+        if (times_changed == 0) {
+            play_bonk_sound();
+        }
+        if (times_changed > 0) {
             play_pop_sound();
         }
     }
@@ -713,7 +776,10 @@ void move_down() {
     moves += 1;
     update_score(score);
     if (soundeffectes) {
-        for (times_changed; times_changed > 0; times_changed--) {
+        if (times_changed == 0) {
+            play_bonk_sound();
+        }
+        if (times_changed > 0) {
             play_pop_sound();
         }
     }
@@ -811,9 +877,11 @@ void load_config(int *width, int *height, char **username)
 void stop_start_music() {
     if (soundeffectes == TRUE) {
         soundeffectes = FALSE;
+        stop_background_music();
         gtk_label_set_label(GTK_LABEL(backgrounmusiclabel), "Backgroundmusic off");
     } else if (soundeffectes == FALSE){
         soundeffectes = TRUE;
+        play_background_music();
         gtk_label_set_label(GTK_LABEL(backgrounmusiclabel), "Backgroundmusic on ");
     }
 }
@@ -1254,6 +1322,8 @@ void activate(GtkApplication *app, gpointer data) {
     // update_cell(0, 2, 0);
     // controlpadding(window, grid);
     start_time = g_get_monotonic_time();
+    preload_pop_sound();
+    preload_bonk_sound();
     gtk_window_present(GTK_WINDOW(window));
 }
 
@@ -1261,8 +1331,11 @@ int main(int argc, char **argv) {
     GtkApplication *app;
     int status;
     start_time = clock();
-
     gst_init(&argc, &argv);
+
+    init_background_music(background_uri);
+    // play_background_music();
+    
 
     srand((unsigned int)time(NULL));
 
